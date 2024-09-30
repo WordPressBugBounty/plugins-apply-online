@@ -4,7 +4,7 @@ Donate link: https://wpreloaded.com/shop/
 Tags: Job Board, Form Builder, Contact Form, payment form, Job Manager
 Requires at least: 5.0
 Tested up to: 6.6
-Stable tag: 2.6.5
+Stable tag: 2.6.6
 Requires PHP: 5.2.4
 License: GPLv2 or later
 
@@ -108,6 +108,9 @@ Scroll bar with fixed height for form fields section.
 Recaptcha integration for secure form submission.
 Required field mark in the received application data.
 Different layout options e.g. grid layout, list layout, sidebar filter, popup form, etc.
+
+= 2.6.6 =
+Fixed: 500 Server error.
 
 = 2.6.5 =
 Fixed: 500 Server error.
@@ -443,6 +446,9 @@ Fixed: Paragraph field text added in the received application & print format.
 * Plugin launched.
 
 == Upgrade Notice ==
+= 2.6.6 =
+ Critical updates. upgrade immediately.
+
 = 2.6.5 =
  Critical updates. upgrade immediately.
 

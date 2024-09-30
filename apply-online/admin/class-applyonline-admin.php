@@ -57,9 +57,7 @@ class Applyonline_Admin{
                 
                 //Application Print
                 add_action('wp_ajax_application_table_filter_result', array($this, 'application_table_filter_result'));
-                                
-                $this->hooks_to_search_in_post_metas();
-                
+                                                
                 new ApplyOnline_Ad_Options();
                                 
                 new Applyonline_Form_Builder();
@@ -277,11 +275,6 @@ class Applyonline_Admin{
          * 
          * @since 1.6
         */
-        function hooks_to_search_in_post_metas(){
-           add_filter('posts_join', array($this, 'cf_search_join' ));
-           add_filter( 'posts_where', array($this, 'cf_search_where' ));
-           add_filter( 'posts_distinct', array($this, 'cf_search_distinct' ));
-        }
         
        function cf_search_join( $join ) {
            global $wpdb;
@@ -1413,7 +1406,7 @@ class Applyonline_Settings extends Applyonline_Form_Builder{
         add_submenu_page('aol-settings', esc_html__('Settings', 'ApplyOnline'), esc_html__('Settings', 'ApplyOnline'), 'delete_others_ads', 'aol-settings');
         $filters = aol_ad_filters();
         foreach($filters as $key => $val){
-            add_submenu_page( 'aol-settings', '', sprintf(esc_html__('%s Filter', 'ApplyOnline'), $val['plural']), 'delete_others_ads', "edit-tags.php?taxonomy=aol_ad_".sanitize_key($key)."&post_type=aol_ad", null );            
+            add_submenu_page( 'aol-settings', '', sprintf(esc_html__('%s Filter', 'ApplyOnline'), $val['plural']), 'delete_others_ads', "edit-tags.php?taxonomy=aol_ad_".sanitize_key($key)."&post_type=aol_ad", null );
         }
     }
 

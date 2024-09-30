@@ -587,7 +587,7 @@ function aol_application_data($post){
 function aol_application_data_v2($post, $keys){
     $meta = get_post_meta($post->ID, "ad_transcript", TRUE);
     foreach($meta as $key => $val){
-        $meta[$key] = maybe_unserialize($val);
+        $meta[$key] = maybe_unserialize(maybe_unserialize($val));
     }
     
     $keys_order = $meta['_aol_fields_order'];
