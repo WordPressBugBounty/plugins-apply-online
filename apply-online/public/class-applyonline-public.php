@@ -51,7 +51,7 @@ class Applyonline_Public {
 		$this->plugin_name = $plugin_name;
 		$this->version = $version;
 
-                new SinglePostTemplate($plugin_name, $version); //Passing 2 parameters to the child
+                new AOL_Single_Post_Template($plugin_name, $version); //Passing 2 parameters to the child
                 new Applyonline_Shortcodes();
                 new Applyonline_AjaxHandler();
 	}
@@ -121,6 +121,12 @@ class Applyonline_Public {
                 $query->set('post__not_in', $closed);
             }
         }
+        
+        //@todo: Use this method instead of aol_form_generator() function.
+        function aol_form_generator($fields, $fieldset = 0, $prepend = NULL, $post_id = 0){
+            return aol_form_generator($fields, $fieldset, $prepend, $post_id);
+        }
+        
         /**
          * This function should be moved to the admin section.
          */
@@ -158,7 +164,7 @@ class Applyonline_Public {
         }
 }
 
-class SinglePostTemplate{
+class AOL_Single_Post_Template{
         var $plugin_name;
         var $version;
         public function __construct($plugin_name = null, $version = null) {
@@ -186,7 +192,14 @@ class SinglePostTemplate{
                 $post_id = $post->ID;
             }
             
-            $field_types = array('text'=> esc_html__('Text','ApplyOnline'), 'checkbox'=>esc_html__('Check Box','ApplyOnline'), 'dropdown'=>esc_html__('Drop Down','ApplyOnline'), 'radio'=> esc_html__('Radio','ApplyOnline'), 'file'=> esc_html__('File','ApplyOnline'), 'separator' => esc_html__('Seprator','ApplyOnline'));
+            $field_types = array(
+                'text'=> esc_html__('Text','ApplyOnline'),
+                'checkbox'=>esc_html__('Check Box','ApplyOnline'),
+                'dropdown'=>esc_html__('Drop Down','ApplyOnline'),
+                'radio'=> esc_html__('Radio','ApplyOnline'),
+                'file'=> esc_html__('File','ApplyOnline'),
+                'separator' => esc_html__('Seprator','ApplyOnline')
+                );
             
             $raw_fields = get_aol_ad_post_meta($post_id);
             $fields = array();
