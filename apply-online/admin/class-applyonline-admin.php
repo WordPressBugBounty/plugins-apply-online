@@ -121,6 +121,7 @@ class Applyonline_Admin{
                 $localize['aol_required_fields_notice'] = esc_html__('Fields with (*)  are compulsory.', 'apply-online');
                 $localize['admin_url'] = admin_url();
                 $localize['aol_url'] = plugins_url( 'apply-online/' );
+                $localize['nonce'] = wp_create_nonce('aol_nonce');
                 wp_enqueue_script( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'js/applyonline-admin.js', array( 'jquery', 'jquery-ui-sortable', 'jquery-ui-autocomplete' ), $this->version, TRUE );
                 
                 if( is_aol_admin_screen() ) wp_enqueue_script( 'aol-select2', plugin_dir_url( __FILE__ ) . 'js/select2.min.js', array(), $this->version, TRUE );
@@ -234,6 +235,7 @@ class Applyonline_Admin{
                 <div class="notice notice-info is-dismissible aol-notice">
                     <p>
                         <?php echo sprintf(esc_html__( "%sApply Online%s plugin is just installed.", 'apply-online' ), '<strong>', '</strong>'); ?> 
+                        <?php //sprintf(esc_html__( "Hey - we noticed you've been using %sApply Online% for a while - that's great! Could you do us a favor and give it a 5-star review on WordPress to help us spread the word and boost our motivation?", 'apply-online' ), '<strong>', '</strong>'); ?>
                         <?php echo sprintf(esc_html__('%sClick Here%s for settings.', 'apply-online'), '<a href="'.  get_admin_url().'?page=aol-settings">', '</a>'); ?>
                     </p>
                 </div>
@@ -1180,7 +1182,7 @@ class Applyonline_Admin{
          * An ajax call to return Application Template Form Fields.
          */
         function template_form_callback(){
-            if( !current_user_can('manage_ads') ) die('Are you nuts?');
+            if( !current_user_can('manage_ads') OR !wp_verify_nonce( $_POST['nonce'], 'aol_nonce' ) ) die('Are you nuts?');
             
             $fields = get_option('aol_form_templates', array());
             $array = $fields[ sanitize_text_field($_POST['template']) ];
