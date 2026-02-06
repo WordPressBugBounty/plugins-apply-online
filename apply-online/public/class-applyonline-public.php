@@ -2,7 +2,7 @@
 /**
  * The public-facing functionality of the plugin.
  *
- * @link       http://wpreloaded.com/farhan-noor
+ * @link       
  * @since      1.0.0
  *
  * @package    Applyonline
@@ -74,7 +74,8 @@ class Applyonline_Public {
 		 * between the defined hooks and the functions defined in this
 		 * class.
 		 */
-
+                
+                //wp_enqueue_style( 'dashicons' );
                 wp_enqueue_style('aol-jquery-ui', plugin_dir_url(__FILE__).'css/jquery-ui.min.css');
 		wp_enqueue_style( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'css/applyonline-public.css', array(), $this->version, 'all' );
 	}
@@ -98,12 +99,14 @@ class Applyonline_Public {
 		 * class.
 		 */
 
-		wp_enqueue_script( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'js/applyonline-public.js', array( 'jquery','jquery-ui-datepicker' ), $this->version, false );
+		wp_enqueue_script( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'js/applyonline-public.js', [ 'jquery','jquery-ui-datepicker' ], $this->version, TRUE );
                 //wp_enqueue_script( 'aol-charcounter', plugin_dir_url( __FILE__ ) . 'js/cct_embed.min.js', array(), $this->version, false );
                 $aol_js_vars = array(
-                        'ajaxurl' => admin_url ( 'admin-ajax.php' ),
+                        'ajaxurl' => admin_url( 'admin-ajax.php' ),
+                        'rest_url' => rest_url('aol/v1'),
+                        'nonce'  => wp_create_nonce('wp_rest'),
                         'date_format'   => get_option('aol_date_format', 'dd-mm-yy'),
-                        'url'    => plugins_url(NULL, __DIR__),
+                        'url'    => plugins_url('', __DIR__),
                         'consent_text' => get_option('aol_form_consent', FALSE),//esc_html__('Do you really want to submit this form?', 'ApplyOnline'),
                 );
                 wp_localize_script (
@@ -244,9 +247,9 @@ class AOL_Single_Post_Template{
                 $css_color = preg_match($css_pattern, $progress_bar['counter']) ? $progress_bar['counter'] : NULL;
             ?>
             <style>
-                .aol-progress{background-color: <?php echo $css_bg; ?>}
-                .aol-progress-count{background-color: <?php echo $css_fg; ?>}
-                .aol-progress-counter{color: <?php echo $css_color; ?>}
+                #aol-progress-wrapper{background-color: <?php echo $css_bg; ?>}
+                #aol-progress-bar{background-color: <?php echo $css_fg; ?>}
+                #aol-progress-counter{color: <?php echo $css_color; ?>}
             </style>
             <form class="aol_app_form aol_app_form_<?php echo (int)$post_id; ?>" name="aol_app_form" id="aol_app_form" enctype="multipart/form-data"  data-toggle="validator" action="#aol_app_form">
                 <?php
@@ -268,12 +271,11 @@ class AOL_Single_Post_Template{
                 <input type="hidden" name="action" value="aol_app_form" >
                 <input type="hidden" name="wp_nonce" value="<?php echo wp_create_nonce( 'the_best_aol_ad_security_nonce' ); ?>" >
                 <?php if( get_option('aol_is_progress_bar') ): ?>
-                    <div class="progress-wrapper">
+                    <div class="progress-wrapper" style="display:none">
                         <span><?php echo sanitize_text_field(get_option('aol_progress_bar_title', 'Application Progress')); ?></span>
                         <!--<progress value="0" max="100" style="width: 100%">3/5</progress>-->
-                        <div class="aol-progress">
-                            <div class="aol-progress-count"></div>
-                            <span class="aol-progress-counter"></span>
+                        <div id="aol-progress-wrapper">
+                            <div id="aol-progress-bar"><span id="aol-progress-counter">0%</span></div>
                         </div>                    
                     </div>
                 <?php endif; ?>
@@ -528,7 +530,7 @@ class Applyonline_Shortcodes{
                                                     '<a href="%s" ><button class="%s">%s</button></a>',
                                                     get_the_permalink($post),
                                                     'fusion-button button read-more btn btn-info',
-                                                    esc_html__( 'Read More', 'ApplyOnline' )
+                                                    get_option( 'aol_readmore_button', __('Read More', 'ApplyOnline') )
                                                     )
                                             );
                                         $body = apply_filters('aol_shortcode_body', $body, $post);
@@ -794,19 +796,23 @@ class Applyonline_Shortcodes{
          */
         public function aol_save_form( $form_data = NULL ){
             if( empty($form_data) ) $form_data = $_POST;
+            
             $nonce = $form_data['wp_nonce'];
             if( !wp_verify_nonce($nonce, 'the_best_aol_ad_security_nonce') /*and (int)get_option('aol_nonce_is_active', 1) == 1*/ ){
-                $response = array( 'reason' => 'Session Expired', 'message' => esc_html__( 'Session Expired, please refresh this page and try again. If problem presists, please report this issue through Contact Us page. Thanks', 'ApplyOnline' ) );
+                $response = array( 'code' => 'session_expired', 'reason' => 'Session Expired', 'message' => esc_html__( 'Session Expired, please refresh this page and try again. If problem presists, please report this issue through Contact Us page. Thanks', 'ApplyOnline' ) );
                 $this->response($response, 401);
             }
+            //Get parent ad value for which the application is being submitted.
+            $ad_id = (int)$form_data['ad_id'] OR $this->response();
+
+            do_action( 'aol_before_app_process', $form_data );
+            
             $app_field = $app_data = array();
             /*Initializing Variables*/
             $errors = new WP_Error();
             $error_assignment = null;
             
             //Check for required fields
-            //Get parent ad value for which the application is being submitted.
-            $ad_id = (int)$form_data['ad_id'];
             
             //@todo: Save transcript in json/serialized format as one postmeta field instead of seperate field for each form field for ad.
             $transcript = $ad_transcript = get_post_meta($ad_id, '', TRUE);
@@ -897,8 +903,8 @@ class Applyonline_Shortcodes{
                 'post_type'     => 'aol_application',
                 'post_parent'   => $parent_id,
                 'post_title'    => get_the_title($parent_id),
-                'post_status'   => 'publish',
-                'tax_input'     => array('aol_application_status' => 'pending'),
+                'post_status'   => 'pending',
+                //'tax_input'     => array('aol_application_status' => 'pending'), Depricated since 2.6.7.4
             );
             do_action('aol_before_app_save', $app_data, $form_data); //Depricated Since 2.5
             do_action('aol_before_save_app', $app_data, $form_data);
@@ -909,7 +915,7 @@ class Applyonline_Shortcodes{
             
             //If post is not saved and generates an error, return error message to the client and terminate further execution.
             if( is_wp_error($pid) ){
-                $response = array( 'reason' => 'Something went wrong.', 'message' => $pid->get_error_message() ); // generate the error response.
+                $response = array( 'code' => $pid->get_error_code(), 'reason' => 'Something went wrong.', 'message' => $pid->get_error_message() ); // generate the error response.
                 $this->response($response, 400);
             }
 
@@ -930,7 +936,7 @@ class Applyonline_Shortcodes{
             update_post_meta($pid, 'ad_transcript', $ad_transcript );
             /* End Saving Ad Transcript Since v2.2 */
 
-            wp_set_post_terms( $pid, 'pending', 'aol_application_status' );
+            //wp_set_post_terms( $pid, 'pending', 'aol_application_status' ); Depreicated since 2.6.7.4
 
             do_action('aol_after_app_save', $pid, $app_data); //Depricated since 2.5
             do_action('aol_after_save_app', $pid, $app_data);
@@ -949,7 +955,12 @@ class Applyonline_Shortcodes{
 
             empty($divert_page) ? $divert_link = null :  $divert_link = get_page_link($divert_page);
             $message = str_replace('[id]', $pid, get_option_fixed('aol_application_success_alert', esc_html__('Form has been submitted successfully with application id [id]. If required, we will get back to you shortly!', 'ApplyOnline')) );
-            $response = array( 'divert' => $divert_link, 'hide_form'=>TRUE , 'message'=>$message );// generate the response.
+            // generate the response alert.
+            $response = apply_filters( 
+                        'aol_application_success_response', 
+                        array( 'divert' => $divert_link, 'hide_form'=>TRUE , 'message'=>$message ),
+                        $app_data
+                    );
             $this->response($response);
         }
 
@@ -1064,7 +1075,7 @@ class Applyonline_Shortcodes{
         }
         
         /**
-         * This function returns REST or AJAX response back to the client and terminatex further execution of the calling function.
+         * This function returns REST or AJAX response back to the client and terminate further execution of the calling function.
          * 
          * @param array $result The actual data that is being returned to the client. It is the body of the HTTP response, containing the information that needs to be received from the server
          * @param int $code HTTP response status code. Default is 200 successful. If $result variable is empty, it will return 404 not found status code.
@@ -1074,9 +1085,15 @@ class Applyonline_Shortcodes{
          */
         function response( $result = [], $code = 200, $header = "Content-type:application/json" ){
             if( empty($result) ) $code = 404;
-
+            
             http_response_code($code);
             header($header);
             exit( json_encode($result) );
+
+            //@todo: Proposed response.
+            $response = new WP_REST_Response();
+            $response->set_status($code);
+            $response->set_data($result);
+            return $response;
         }
 }

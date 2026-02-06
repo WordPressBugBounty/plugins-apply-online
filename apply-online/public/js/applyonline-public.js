@@ -50,34 +50,6 @@
 
                 current.text(characterCount);
 
-
-                /*This isn't entirely necessary, just playin around*/
-                if (characterCount < 70) {
-                  current.css('color', '#666');
-                }
-                if (characterCount > 70 && characterCount < 90) {
-                  current.css('color', '#6d5555');
-                }
-                if (characterCount > 90 && characterCount < 100) {
-                  current.css('color', '#793535');
-                }
-                if (characterCount > 100 && characterCount < 120) {
-                  current.css('color', '#841c1c');
-                }
-                if (characterCount > 120 && characterCount < 139) {
-                  current.css('color', '#8f0001');
-                }
-
-                if (characterCount >= 140) {
-                  maximum.css('color', '#8f0001');
-                  current.css('color', '#8f0001');
-                  theCount.css('font-weight','bold');
-                } else {
-                  maximum.css('color','#666');
-                  theCount.css('font-weight','normal');
-                }
-
-
             });
             /*Ends Textarea Charchter Counter*/
          
@@ -85,50 +57,7 @@
             $( ".aol_app_form" ).submit(function(){
                 aolSubmitForm(event);
             });
-            /*
-            $( ".aol_app_form" ).submit(function(){
-                var datastring = new FormData(document.getElementById("aol_app_form"));
-                var request = $.ajax({
-                    url: aol_public.ajaxurl,
-                    type: 'POST',
-                    dataType: 'json',
-                    data: datastring,
-                    //async: false,
-                    contentType: false,
-                    processData: false,
-                    beforeSend: function(){
-                        $('#aol_form_status').removeClass();
-                        $('#aol_form_status').html('<img src="'+aol_public.url+'/images/loading.gif" />');
-                        $('#aol_form_status').addClass('alert alert-warning');
-                        $(".aol-form-button").prop('disabled', true);
-                    }
-                });                        
-                request.done( function(response, type, data){
-                    $(document).trigger('afterAppSubmit', response); //Custom event  on ajax completion
-                    if(response['success']==true){
-                        $('#aol_form_status').removeClass();
-                        $('#aol_form_status').addClass('alert alert-success');
-                        $('#aol_form_status').html(response['message']);
-                        $(".aol-form-button").prop('disabled', false);
-                        if(response['hide_form']==true) $('.aol_app_form').slideUp(); //Show a sliding effecnt.
 
-                        //Divert to thank you page. 
-                        if(response.divert != null){
-                            var page = response.divert;
-                            window.location.href = stripslashes(page);
-                        }
-                    }
-                });
-                request.fail( function(xhr, type, errorText){
-                        let response = JSON.parse(xhr.responseText);
-                        $('#aol_form_status').removeClass();
-                        $('#aol_form_status').addClass('alert alert-danger');
-                        $('#aol_form_status').html('<h4>'+errorText+'</h4>'+response['message']);
-                        $(".aol-form-button").prop('disabled', false);
-                });
-                return false;
-            });
-          */
             //Separator Code
             $('.aol_multistep').click(function(){
                 $('fieldset').hide();
@@ -140,40 +69,43 @@
             });
           
             /* Progress Bar*/
-            var fields_required = $('.aol-form-group.required');
-            var fields_count = fields_required.length;
-            if(fields_count > 0) {
-                $('.progress-wrapper').show();
-                update_progress_bar($, fields_required, fields_count);
-                $(fields_required).find('input, textarea').change(function(){
-                    update_progress_bar($, fields_required, fields_count);
-                });                                                 
-            }
             /*End Progress Bar*/
         })
 
 })( jQuery );
 
-function update_progress_bar($, field, fields_count){
-    var filled = 0;
-    $(field).each(function(){
-        //If child input field is a checkbox or radio.
-        if( $(this).find('input').attr('type') == 'checkbox' || $(this).find('input').attr('type') == 'radio' ){
-            if($(this).find('input').is(':checked')) { // zero-length string AFTER a trim
-                filled++;
-            }
-        }
-        else{
-            if($.trim( $(this).find('input, textarea').val() ).length ) { // zero-length string AFTER a trim
-                filled++;
-            }            
-        }
-    });
-    filled_pecentage = (filled/fields_count)*100;
-    $('.aol-progress-count').css('width',filled_pecentage+'%');
-    $('.aol-progress-counter').text(filled+'/'+fields_count);
-    //$('.aol_progress').val(filled+'/'+fields_count);
-}
+document.addEventListener('DOMContentLoaded', function () {
+
+    const form = document.querySelector('form.aol_app_form');
+
+    // Only run if the form exists
+    if (!form) return;
+
+    const requiredFields = form.querySelectorAll('[required]');
+    const progressBar   = form.querySelector('#progress-bar');
+    const progressText  = form.querySelector('#progress-text');
+
+    function aolupdateProgress() {
+        let filled = 0;
+
+        requiredFields.forEach(field => {
+          if (field.checkValidity()) filled++;
+        });
+
+        const percent = Math.round((filled / requiredFields.length) * 100);
+        //alert(percent);
+
+        if (progressBar) progressBar.style.width = percent + '%';
+        if (progressText) progressText.textContent = percent + '%';
+  }
+
+  form.addEventListener('input', aolupdateProgress);
+  form.addEventListener('change', aolupdateProgress);
+
+  aolupdateProgress();
+});
+
+//End Progress Bar
 
 async function aolSubmitForm( event ) {
     if(!aolEmpty(aol_public.consent_text)){

@@ -6,7 +6,7 @@
  * A class definition that includes attributes and functions used across both the
  * public-facing side of the site and the admin area.
  *
- * @link       http://wpreloaded.com/farhan-noor
+ * @link       
  * @since      1.0
  *
  * @package    Applyonline
@@ -80,10 +80,10 @@ class Applyonline {
 		$this->set_locale();
 		$this->define_admin_hooks();
 		$this->define_public_hooks();
+		$this->define_updater_hooks();
+		$this->define_rest_hooks();
 
                 add_action( 'init', array( $this, 'register_aol_post_types' ), 5 );
-                add_action( 'init', array($this, 'after_plugin_update'));
-                add_action( 'wp_enqueue_scripts', array($this, 'load_dashicons_front_end') );
 
                 new Applyonline_Labels();
 	}
@@ -97,6 +97,7 @@ class Applyonline {
 	 * - Applyonline_i18n. Defines internationalization functionality.
 	 * - Applyonline_Admin. Defines all hooks for the admin area.
 	 * - Applyonline_Public. Defines all hooks for the public side of the site.
+	 * - Applyonline_Rest. Defines all hooks for REST API.
 	 *
 	 * Create an instance of the loader which will be used to register the hooks
 	 * with WordPress.
@@ -111,6 +112,11 @@ class Applyonline {
 		 * core plugin.
 		 */
 		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-applyonline-loader.php';
+                
+                /**
+		 * The class responsible for defining all actions that occur before/after plugin update.
+		 */
+		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-applyonline-updater.php';
 
 		/**
 		 * The class responsible for defining internationalization functionality
@@ -128,6 +134,11 @@ class Applyonline {
 		 * side of the site.
 		 */
 		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'public/class-applyonline-public.php';
+		
+                /**
+		 * The class responsible for defining all actions that occur in the REST API
+		 */
+		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'rest/class-applyonline-rest.php';
                 
                 /*
                  * Form Builder addon
@@ -173,12 +184,13 @@ class Applyonline {
 		$this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_styles' );
 		$this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_scripts' );
 		
+                //Show all statuses.
+                $this->loader->add_action( 'pre_get_posts', $plugin_admin, 'show_all_post_statuses_in_admin' );
+		
                 //Extend WordPress search to include custom fields Join posts and postmeta tables.
                 $this->loader->add_filter('posts_join', $plugin_admin, 'cf_search_join' );
                 $this->loader->add_filter( 'posts_where', $plugin_admin, 'cf_search_where' );
                 $this->loader->add_filter( 'posts_distinct', $plugin_admin, 'cf_search_distinct' );
-
-                $this->loader->add_filter( 'views_edit-aol_application', $plugin_admin, 'status_filters' );
                 
                 $this->loader->add_action( 'save_post', $plugin_admin, 'save_ad'  );
                 
@@ -211,6 +223,34 @@ class Applyonline {
                 /*Schedule Ad*/
                 $this->loader->add_action( 'pre_get_posts', $plugin_public, 'check_ad_closing_status' );
                 $this->loader->add_action( 'set_current_user', $plugin_public, 'output_attachment' );
+	}
+
+	/**
+	 * Register all of the hooks related to the public-facing functionality
+	 * of the plugin.
+	 *
+	 * @since    1.0.0
+	 * @access   private
+	 */
+	private function define_updater_hooks() {
+
+		$plugin_public = new Applyonline_Updater( $this->get_plugin_name(), $this->get_version() );
+
+		$this->loader->add_action( 'plugins_loaded', $plugin_public, 'after_plugin_update', 1 );
+	}
+        
+        /**
+	 * Register all of the hooks related to the REST functionality
+	 * of the plugin.
+	 *
+	 * @since    1.0.0
+	 * @access   private
+	 */
+	private function define_rest_hooks() {
+
+		$rest_public = new Applyonline_Rest( $this->get_plugin_name(), $this->get_version() );
+
+		//$this->loader->add_action( 'wp_enqueue_scripts', $rest_public, 'enqueue_styles', 1 );
 	}
 
         /**
@@ -253,49 +293,14 @@ class Applyonline {
 		return $this->version;
 	}
 
-        function after_plugin_update(){
-            require_once plugin_dir_path( __FILE__ ).'class-applyonline-activator.php';
-            $saved_version = get_option('aol_version', 0);
-            if($saved_version < 1.6) {
-                Applyonline_Activator::bug_fix_before_16();
-            }
-
-            if($saved_version < 1.9){
-                Applyonline_Activator::fix_roles();
-            }
-
-            if($saved_version < 2.1){
-                /*Merge Custom Filters to Default Filters*/
-                $default_filters = array(
-                    'category' => array('singular' => esc_html__('Category', 'ApplyOnline'), 'plural' => esc_html__('Categories', 'ApplyOnline')),
-                    'type' => array('singular' => esc_html__('Type', 'ApplyOnline'), 'plural' => esc_html__('Types', 'ApplyOnline')),
-                    'location' => array('singular' => esc_html__('Location', 'ApplyOnline'), 'plural' => esc_html__('Locations', 'ApplyOnline'))
-                );
-                $custom_filters = get_option_fixed('aol_custom_filters', array());
-                $filters = array_merge($default_filters, $custom_filters);
-                //Update Option was not working for Existing options, hence it is 1st being deleted.
-                delete_option('aol_ad_filters');
-                update_option('aol_ad_filters', $filters);
-                
-                /*Merge Custom Statuses to Default Statuses*/
-                $default_statuses = array('pending' => __('Pending', 'ApplyOnline'), 'rejected'=> __('Rejected', 'ApplyOnline'), 'shortlisted' => __('Shortlisted', 'ApplyOnline'));
-                $custom_statuses = get_option_fixed('aol_custom_statuses', array());
-                $statuses = array_merge($default_statuses, $custom_statuses);
-                //Update Option was not working for Existing options, hence it is 1st being deleted.
-                delete_option('aol_custom_statuses');
-                update_option('aol_custom_statuses', $statuses);
-                
-                update_option('aol_mail_footer', "\n\nThank you\n".get_bloginfo('name')."\n".site_url()."n------\nPlease do not reply to this system generated message.");
-                
-                /*Setting version to latest 2.1*/
-                update_option('aol_version', $this->get_version(), TRUE);
-            }
-        }
-
-        function load_dashicons_front_end() {
-          wp_enqueue_style( 'dashicons' );
-        }
-
+        /**
+         * 
+         * @param type $cpt Post type name.
+         * @param type $singular Singular name.
+         * @param type $plural Plural name.
+         * @param type $description Description.
+         * @param type $args_custom Custom arguments.
+         */
         public function cpt_generator($cpt, $singular, $plural, $description, $args_custom = array()){
             if($singular != NULL){
             $labels=array(

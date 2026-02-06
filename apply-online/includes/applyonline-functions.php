@@ -716,12 +716,13 @@ function get_aol_settings(){
  * @return array Headers required by mail functions.
  */
 function aol_from_mail_header($extra_headers = array()){
+    $user = get_option( 'aol_from_email', 'do-not-reply' );
     // Get the site domain and get rid of www.
     $sitename = strtolower( $_SERVER['SERVER_NAME'] );
     if ( substr( $sitename, 0, 4 ) == 'www.' ) {
         $sitename = substr( $sitename, 4 );
     }
-    $from_email = 'do-not-reply@' . $sitename;
+    $from_email = $user.'@'.$sitename;
     
     //Removed since 2.5.4
     //$headers = 'Content-Type: text/html'."\r\n";
@@ -729,7 +730,7 @@ function aol_from_mail_header($extra_headers = array()){
     //$headers .= implode(",\r\n", $extra_headers);
     
     //Introduced in  2.5.4
-    $headers = array('Content-Type: text/html', "From: ". wp_specialchars_decode(get_bloginfo('name'))." <$from_email>");
+    $headers = array('Content-Type: text/html', "From: ". wp_specialchars_decode( get_bloginfo('name') )." <$from_email>");
     
     return array_merge($headers, $extra_headers); 
     

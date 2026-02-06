@@ -131,6 +131,23 @@ class Applyonline_Admin{
                 wp_enqueue_script( 'jquery-ui-datepicker');
 	}
         
+        function show_all_post_statuses_in_admin( $query ) {
+            // Only modify the query if it's in the admin panel and the main query
+            if ( is_admin() && $query->is_main_query() && is_post_type_archive('aol_application') ) {
+                // Check if we are on the 'edit.php' screen (Applications list)
+                global $pagenow;
+                if ( $pagenow == 'edit.php' ) {
+                    // Get all possible application statuses
+                    if ( empty( $_GET['post_status'] ) || $_GET['post_status'] === 'all' ) {
+            
+                        // Set to 'any' to include all statuses except those excluded from search
+                        // (Note: 'any' usually excludes 'trash' and 'auto-draft' by default)
+                        $query->set( 'post_status', 'any' );
+                    }
+                }
+            }
+        }
+        
         function get_ads_list(){
             if( !current_user_can('manage_ads') ) die('Are you nuts?');
             
@@ -153,16 +170,6 @@ class Applyonline_Admin{
             return $args;
         }
  
-        function status_filters($views){
-            unset($views['mine']); unset($views['publish']);
-            $statuses = aol_app_statuses();
-            foreach ($statuses as $key => $status){
-                (isset($_GET['aol_application_status']) AND $_GET['aol_application_status'] == $key)? $class = 'current' : $class = NULL;
-                $views[$status] = '<a class="'.$class.'" href="'.  admin_url("edit.php?post_type=aol_application&aol_application_status=$key").'">'.esc_html__($status, 'apply-online').'</a>';        
-            }
-            return $views;
-        }
-
         /**
 	 * Save the meta when the post is saved.
 	 *
@@ -228,7 +235,7 @@ class Applyonline_Admin{
 
         public function admin_notice(){            
             //$notices = get_option('aol_dismissed_notices', array()); Obselete in favor of aol_admin_notices since 2.5.1
-            $notices = get_option('aol_admin_notices', array('aol_fresh_install'));
+            $notices = get_option('aol_admin_notices', ['aol_fresh_install']);
             if( empty($notices) OR !current_user_can('manage_options')) return;
             //esc_html__( "%sApply Online%s - It's good to %scheck things%s before a long drive.", 'apply-online' )
             ?>
@@ -537,35 +544,75 @@ class Applyonline_Admin{
         }
     }
     
+    /**
+     * @todo: Move this class to a seperate file in the admin folder.
+     */
     class Applyonline_Applications{
+        
         public function __construct(){
-                
+            add_action( 'init', [$this, 'custom_statuses'], 1 );
+            //add_action( 'views_edit-aol_application', [$this, 'status_filters'] ); 
             //Add Application data to the Application editor. 
             add_action ( 'edit_form_after_title', array ( $this, 'aol_application_post_editor' ) );
             add_filter('post_row_actions',array($this, 'aol_post_row_actions'), 10, 2);
             add_action('admin_init', array($this, 'alter_metaboxes_on_application_page'));
             add_action( 'add_meta_boxes', array($this, 'aol_meta_boxes'),1 );
-            add_action('save_post_aol_application', array($this, 'save_application'));
+            add_filter( 'wp_insert_post_data', [$this, 'save_application'], 10, 2 );
             add_action('init', array($this, 'application_print'));
             add_action('manage_posts_extra_tablenav', array($this, 'applications_table_filter') );
-            
+
             /*Preview or Quickview an application.*/
             add_action( 'admin_action_aol_modal_box', array ( $this, 'application_quick_view') );
-            
+
             add_filter( 'post_date_column_status', array($this, 'application_date_column'), 10, 2);
 
             // Hook - Applicant Listing - Column Name
             add_filter( 'manage_edit-aol_application_columns', array ( $this, 'applicants_list_columns' ) );
 
-            // Hook - Applicant Listing - Column Value
+            //Hook - Applicant Listing - Column Value
             add_action( 'manage_aol_application_posts_custom_column', array ( $this, 'applicants_list_columns_value' ), 10, 2 ); 
-            
+
             //Filter Applications based on parent.
             add_action( 'pre_get_posts', array($this, 'applications_filter') );
             
             add_filter( 'bulk_actions-edit-aol_application', array($this, 'custom_bulk_actions') );
             add_filter( 'handle_bulk_actions-edit-aol_application', array($this, 'my_bulk_action_handler'), 10, 3 );
         }
+
+        /**
+         * This function handles/shows custom statuses in Applications Admin table.
+         * If no post is assigned to a particular status, admin table will not show that status in the list.
+         */
+        function custom_statuses(){
+            $statuses = aol_app_statuses();
+            foreach( $statuses as $status ):
+                register_post_status( 
+                    $status,
+                    array(
+                        'label' => $status,
+                        'label_count' => _n_noop( $status.' <span class="count">(%s)</span>', $status.' <span class="count">(%s)</span>'),
+                        'public' => true,
+                        'show_in_admin_all_list'    => true,
+                        'show_in_admin_status_list' => true,
+                    ) 
+                );
+            endforeach;
+        }
+        
+        /**
+         * Depricated in favor of custom_statuses().
+         */
+        function status_filters($views){
+            unset($views['mine']); unset($views['publish']);
+            $statuses = aol_app_statuses();
+            foreach ($statuses as $key => $status){
+                (isset($_GET['aol_application_status']) AND $_GET['aol_application_status'] == $key)? $class = 'current' : $class = NULL;
+                //$views[$status] = '<a class="'.$class.'" href="'.  admin_url("edit.php?post_type=aol_application&aol_application_status=$key").'">'.esc_html__($status, 'apply-online').'</a>';        
+                $views[$status] = '<a class="'.$class.'" href="'.  admin_url("edit.php?post_status=$key&post_type=aol_application").'">'.esc_html__($status, 'apply-online').'</a>';        
+            }
+            return $views;
+        }
+
         
         function custom_bulk_actions($actions){
             $stauses = aol_app_statuses_active();
@@ -654,20 +701,23 @@ class Applyonline_Admin{
             remove_meta_box('commentstatusdiv', 'aol_application', 'normal'); //Hide discussion meta box.
             remove_meta_box('submitdiv', 'aol_application', 'side');
         }
-            
-        function save_application($post_id){
-            if ( wp_is_post_revision( $post_id ) ) return;
-            // Check if this post is in default category
-            if ( isset($_POST['aol_tag']) AND !empty($_POST['aol_tag']) ){
-                $term = sanitize_key($_POST['aol_tag']);
-                $result = current_user_can('delete_applications') ? wp_set_post_terms( $post_id, $term, 'aol_application_status' ): array();
-                do_action('aol_application_status_change', $result[0], $post_id);
+        
+        /**
+         * 
+         * @param array $data Posta data to be saved in the database.
+         * @param array $postarr Raw data.
+         * @return type $data
+         */
+        function save_application($data, $postarr){
+            if( $data['post_type'] == 'aol_application' AND isset($postarr['application_status']) AND !empty($postarr['application_status']) ){
+                $data['post_status'] = sanitize_key($postarr['application_status']);
             }
+            //echo '<pre>'; print_r($data); echo '</pre>'; die();
+            return $data;
         }
         
         function application_sidebar(){
             global $post;
-            $post_terms = get_the_terms( $post->ID, 'aol_application_status');
             $stauses = aol_app_statuses_active();
             ?>
             <div class="submitpost">
@@ -681,10 +731,10 @@ class Applyonline_Admin{
                     if(current_user_can('delete_applications')){
                     ?>
                         <p class="post-attributes-label-wrapper"><label class="post-attributes-label" for="parent_id"><?php esc_html_e('Application Status','apply-online');?></label></p>
-                        <select class="aol_select" name="aol_tag">
+                        <select class="aol_select" name="application_status">
                             <?php
                             foreach($stauses as $key => $val){
-                                $selected = ( $key == $post_terms[0]->slug ) ? 'selected' : NULL;
+                                $selected = ( $key == $post->post_status ) ? 'selected' : NULL;
                                 echo '<option value="'. sanitize_key($key).'" '.$selected.'>'. esc_html__($val, 'apply-online').'</option>';
                             }
                             ?>
@@ -786,7 +836,7 @@ class Applyonline_Admin{
             <?php
             endif;
         }
-        
+
         /**
          * Applicant Listing - Column Name
          *
@@ -801,7 +851,7 @@ class Applyonline_Admin{
                 'title'    => esc_html__( 'Ad Title', 'apply-online' ),
                 'qview'      => NULL,
                 'applicant'=> esc_html__( 'Applicant', 'apply-online' ),
-                'taxonomy' => esc_html__( 'Status', 'apply-online' ),
+                'status' => esc_html__( 'Status', 'apply-online' ),
             );
             $columns = apply_filters('aol_application_posts_columns', $columns);
             $columns['date'] = esc_html__( 'Date', 'apply-online' );
@@ -817,12 +867,19 @@ class Applyonline_Admin{
          * @return  void
          */
         public function applicants_list_columns_value( $column, $post_id ){
-            $keys = get_post_custom_keys( $post_id ); $values = get_post_meta($post_id); 
+            //Depricated due to perfomrance issues.
+            /*
+            $keys = get_post_custom_keys( $post_id );
+            $values = get_post_meta($post_id);
             $new = array();
             foreach($values as $key => $val){
                 $new[$key]=$val[0];
             }
             $name = aol_array_find('Name', $keys);
+             * 
+             */
+            $name = strtolower( get_option_fixed('aol_name_column_field', 'name', FALSE) );
+
             switch ( $column ) {
                 case 'id' :
                     echo $post_id;
@@ -837,14 +894,15 @@ class Applyonline_Admin{
 
                     echo '<a href="' . esc_url($url) . '" class="thickbox" title="'. esc_attr__('Quick View', 'apply-online').'"><span class="dashicons dashicons-visibility"></span></a>';
                  break;
+                //Depricated due to perfomrance issues.
                 case 'applicant' :
                     if($name === FALSE):
                         $applicant_name = esc_html__('Undefined', 'apply-online');
                     else:
-                        $applicant = apply_filters( 'aol_applicants_table_name_column', get_post_meta( $post_id, $keys[ $name ], TRUE ), $post_id, $keys[ $name ] );
-                        if(is_object($applicant)) $applicant = NULL;
-                        elseif(is_array($applicant))    $applicant = implode(',', $applicant);
-
+                        //$applicant = apply_filters( 'aol_applicants_table_name_column', get_post_meta( $post_id, $keys[ $name ], TRUE ), $post_id, $keys[ $name ] );
+                        //if(is_object($applicant)) $applicant = NULL;
+                        //elseif(is_array($applicant))    $applicant = implode(',', $applicant);
+                        $applicant = get_post_meta($post_id, "_aol_app_$name", TRUE);
                         $applicant_name = sprintf( 
                                 '<a href="%s">%s</a>', 
                                 esc_url( add_query_arg( array ( 'post' => $post_id, 'action' => 'edit' ), 'post.php' ) ), 
@@ -853,24 +911,8 @@ class Applyonline_Admin{
                     endif;
                     echo sanitize_text_field($applicant_name); 
                     break;
-                case 'taxonomy' :
-                    //$parent_id = wp_get_post_parent_id( $post_id ); // get_post_field ( 'post_parent', $post_id );
-                    $terms = get_the_terms( $post_id, 'aol_application_status' );
-                    $statuses = aol_app_statuses();
-                    if ( ! empty( $terms ) ) {
-                        $out = array ();
-                        foreach ( $terms as $term ){
-                            $status_name = isset($statuses[$term->slug]) ? $statuses[$term->slug] : $term->name;
-                            $out[] = sprintf( 
-                                    '<a href="%s">%s</a>', 
-                                    esc_url( add_query_arg( array ( 'post_type' => 'aol_application', 'aol_application_status' => $term->slug ), 'edit.php' ) ),
-                                    esc_html( sanitize_term_field( 'name', __($status_name, 'apply-online'), $term->term_id, 'aol_application_status', 'display' ) )
-                            );
-                        }
-                        echo sanitize_text_field(join( ', ', $out ));
-                    }/* If no terms were found, output a default message. */ else {
-                        esc_html_e( 'Undefined' , 'apply-online');
-                    }
+                case 'status' :
+                    echo sanitize_text_field( get_post_status($post_id) );
                     break;
             }
         }                
@@ -1565,9 +1607,9 @@ class Applyonline_Settings extends Applyonline_Form_Builder{
                     <?php 
                         foreach($tabs as $tab){
                             if( isset($tab['capability']) AND !current_user_can($tab['capability']) ) continue;
-                            $href = empty($tab['href']) ? null : 'href="'.$tab['href'].'" target="_blank"';
+                            $href = empty($tab['href']) ? null : 'href="'.esc_url($tab['href']).'" target="_blank"';
                             $classes = isset($tab['classes']) ? $tab['classes'] : null;
-                            echo '<a class="nav-tab aol-tab '. esc_attr($classes).'" data-id="'.esc_attr($tab['id']).'" '.esc_url($href).'>'.sanitize_text_field($tab['name']).'</a>';
+                            echo '<a class="nav-tab aol-tab '. esc_attr($classes).'" data-id="'.esc_attr($tab['id']).'" '.$href.'>'.sanitize_text_field($tab['name']).'</a>';
                         }
                     ?>
                 </h2>
@@ -1595,14 +1637,23 @@ class Applyonline_Settings extends Applyonline_Form_Builder{
         <?php
         return ob_get_flush();
     }
+    
+    function sanitize_from_email( $email ){
+        $pattern = '/@.*/';
+        $email = preg_replace($pattern, '', $email);
+        return $email;
+    }
 
     public function registers_settings(){
+        register_setting( 'aol_settings_group', 'aol_from_email', array( 'type' => 'string', 'sanitize_callback' => [$this, 'sanitize_from_email'] ) );
         register_setting( 'aol_settings_group', 'aol_recipients_emails', array( 'sanitize_callback' => 'sanitize_textarea_field') );
         register_setting( 'aol_settings_group', 'aol_application_success_alert', array( 'sanitize_callback' => 'sanitize_text_field') );
         register_setting( 'aol_settings_group', 'aol_is_progress_bar', array( 'sanitize_callback' => 'boolval') );
         register_setting( 'aol_settings_group', 'aol_progress_bar_color', array( 'sanitize_callback' => 'aol_sanitize_array') );
+        register_setting( 'aol_settings_group', 'aol_name_column_field', array( 'sanitize_callback' => 'sanitize_text_field') );
 
-        register_setting( 'aol_settings_group', 'aol_shortcode_readmore', array( 'sanitize_callback' => 'esc_attr') );
+        register_setting( 'aol_settings_group', 'aol_shortcode_readmore', array( 'sanitize_callback' => 'esc_attr') ); //Depricated since 2.7.3
+        register_setting( 'aol_settings_group', 'aol_readmore_button', array( 'sanitize_callback' => 'esc_attr') );
         register_setting( 'aol_settings_group', 'aol_application_submit_button', array( 'sanitize_callback' => 'esc_attr') );
         register_setting( 'aol_settings_group', 'aol_required_fields_notice', array( 'sanitize_callback' => 'sanitize_text_field'));
         register_setting( 'aol_settings_group', 'aol_thankyou_page', array( 'sanitize_callback' => 'sanitize_text_field') );
@@ -1724,6 +1775,21 @@ class Applyonline_Settings extends Applyonline_Form_Builder{
                     </tr>
                     -->
                     <tr>
+                        <th><label for="aol_name_column_field"><?= esc_html_e('Form field to show in Applications section', 'apply-online'); ?></label></th>
+                        <td>
+                            <input id="aol_name_column_field" class="regular-text" name="aol_name_column_field" value="<?= esc_attr( get_option('aol_name_column_field') ); ?>" placeholder="name">
+                            <p class="description"><?= esc_html_e('Select a form field id from the form builder to show in the Applications table under Applicant column. Defaults to name field.', 'ApplyOnline'); ?></p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th><label for="aol_from_email"><?php esc_html_e('From email address', 'apply-online'); ?></label></th>
+                        <td>
+                            <input id="aol_from_email" class="regular-text" name="aol_from_email" value="<?= esc_attr( get_option('aol_from_email') ); ?>" placeholder="do-not-reply">
+                            <p class="description"><?php esc_html_e('Make sure this email address exist on your mailing server otherwise email delivery may fail.', 'apply-online'); ?></p>
+                            <p class="description"><?php esc_html_e('Mail SMTP plugin is important for email deliverability. Make sure you have installed & configured a Mail SMTP plugin correctly.'); ?>
+                        </td>
+                    </tr>
+                    <tr>
                         <th><label for="aol_recipients_emails"><?php esc_html_e('List of e-mails to get application alerts', 'apply-online'); ?></label></th>
                         <td>
                             <textarea id="aol_recipients_emails" class="small-text code" name="aol_recipients_emails" cols="50" rows="5"><?php echo sanitize_textarea_field(get_option_fixed('aol_recipients_emails') ); ?></textarea>
@@ -1741,8 +1807,31 @@ class Applyonline_Settings extends Applyonline_Form_Builder{
                             <p class="description"></p>
                         </td>
                     </tr>
-                    <tr>
-                        <th><label for="aol_progress_bar"><?php esc_html_e('Application Form Progress Bar', 'apply-online'); ?></label></th>
+                    <tr class="aol-border aol-border-top">
+                        <th><label for="aol_admin_mail_subject"><?php esc_html_e('Email notification subject for admin', 'apply-online'); ?></label></th>
+                        <td>
+                            <input class="regular-text" type="text" name="aol_admin_mail_subject" cols="50" rows="3" id="aol_admin_mail_subject" value="<?php echo esc_attr( get_option_fixed('aol_admin_mail_subject', 'New application [id] for [title]' ) ); ?>" />
+                            <p class="description"> <?php esc_html_e('Use [id] and [title] to write ad ID and title in the email subject.', 'apply-online'); ?></p>
+                        </td>
+                    </tr>
+                    <tr class="aol-border aol-border-sides">
+                        <th><label for="aol_success_mail_subject"><?php esc_html_e('Email notification subject for applicant', 'apply-online'); ?></label></th>
+                        <td>
+                            <input class="regular-text" type="text" name="aol_success_mail_subject" cols="50" rows="3" id="aol_success_mail_subject" value="<?php echo esc_attr( get_option_fixed('aol_success_mail_subject', 'Your application for [title]' ) ); ?>" />
+                            <p class="description"> <?php esc_html_e('Use [id] and [title] to write ad ID and title in the email subject.', 'apply-online'); ?></p>
+                        </td>
+                    </tr>
+                    <tr class="aol-border aol-border-bottom">
+                        <th><label for="aol_success_mail_message"><?php esc_html_e('Email notification message', 'apply-online'); ?></label></th>
+                        <td>
+                            <textarea class="small-text code" name="aol_success_mail_message" cols="50" rows="10" id="aol_success_mail_message"><?php echo sanitize_textarea_field( get_option_fixed('aol_success_mail_message', $message) ); ?></textarea>
+                            <p class="description"> <?php esc_html_e('Ues [title] & [id] to add ad title & its ID number in the mail.', 'apply-online'); ?></p>
+                        </td>
+                    </tr>
+                    <tr class="aol-border aol-border-top">
+                        <th>
+                            <label for="aol_progress_bar"><?php esc_html_e('Application Form Progress Bar', 'apply-online'); ?></label>
+                        </th>
                         <td>
                             <label class="switch">
                                 <input type="checkbox" name="aol_is_progress_bar" <?php echo get_option('aol_is_progress_bar') ? 'checked="checked"':Null; ?> >
@@ -1751,7 +1840,7 @@ class Applyonline_Settings extends Applyonline_Form_Builder{
                             <p class="description"><?php esc_html_e('Applies to required form fields only.', 'apply-online'); ?> </p>
                         </td>
                     </tr>
-                    <tr>
+                    <tr class="aol-border aol-border-bottom">
                         <th><label for="aol_progress_bar_color"><?php esc_html_e('Progress Bar Color Scheme', 'apply-online'); ?></label></th>
                         <td>
                             <label> Foreground <input type="color" name="aol_progress_bar_color[foreground]"  value="<?php echo esc_attr($progress_bar['foreground']); ?>" /></label> &nbsp; 
@@ -1764,27 +1853,6 @@ class Applyonline_Settings extends Applyonline_Form_Builder{
                         <td>
                             <textarea class="small-text code" name="aol_application_success_alert" cols="50" rows="4" id="aol_application_success_alert"><?php echo sanitize_text_field( get_option_fixed('aol_application_success_alert', $submission_alert ) ); ?></textarea>
                             <p class="description"><?php esc_html_e('Use [id] for dynamic application ID.', 'apply-online'); ?></p>
-                        </td>
-                    </tr>
-                    <tr>
-                        <th><label for="aol_admin_mail_subject"><?php esc_html_e('Email notification subject for admin', 'apply-online'); ?></label></th>
-                        <td>
-                            <input class="regular-text" type="text" name="aol_admin_mail_subject" cols="50" rows="3" id="aol_admin_mail_subject" value="<?php echo esc_attr( get_option_fixed('aol_admin_mail_subject', 'New application [id] for [title]' ) ); ?>" />
-                            <p class="description"> <?php esc_html_e('Use [id] and [title] to write ad ID and title in the email subject.', 'apply-online'); ?></p>
-                        </td>
-                    </tr>
-                    <tr>
-                        <th><label for="aol_success_mail_subject"><?php esc_html_e('Email notification subject for applicant', 'apply-online'); ?></label></th>
-                        <td>
-                            <input class="regular-text" type="text" name="aol_success_mail_subject" cols="50" rows="3" id="aol_success_mail_subject" value="<?php echo esc_attr( get_option_fixed('aol_success_mail_subject', 'Your application for [title]' ) ); ?>" />
-                            <p class="description"> <?php esc_html_e('Use [id] and [title] to write ad ID and title in the email subject.', 'apply-online'); ?></p>
-                        </td>
-                    </tr>
-                    <tr>
-                        <th><label for="aol_success_mail_message"><?php esc_html_e('Email notification message', 'apply-online'); ?></label></th>
-                        <td>
-                            <textarea class="small-text code" name="aol_success_mail_message" cols="50" rows="10" id="aol_success_mail_message"><?php echo sanitize_textarea_field( get_option_fixed('aol_success_mail_message', $message) ); ?></textarea>
-                            <p class="description"> <?php esc_html_e('Ues [title] & [id] to add ad title & its ID number in the mail.', 'apply-online'); ?></p>
                         </td>
                     </tr>
                     <tr>
@@ -1803,7 +1871,7 @@ class Applyonline_Settings extends Applyonline_Form_Builder{
                             <button id="app_closed_alert_button" class="button"><?php esc_html_e('Default Alert', 'apply-online'); ?></button>
                         </td>
                     </tr>
-                    <tr>
+                    <tr style="display:none">
                         <th><label for="aol_days_for_older_ads_alert"><?php esc_html_e('Number of days for older ads email alert.', 'apply-online'); ?></label></th>
                         <td>
                             <input type="number" id="aol_days_for_older_ads_alert" class="regular-text" name="aol_days_for_older_ads_alert" value="<?php echo (int)get_option_fixed('aol_days_for_older_ads_alert', 0); ?>">
@@ -1846,7 +1914,7 @@ class Applyonline_Settings extends Applyonline_Form_Builder{
                         </td>
                     </tr>
                     <tr>
-                        <th><label for="aol_application_submit_button"><?php esc_html_e('Application form Submit Button', 'apply-online'); ?></label></th>
+                        <th><label for="aol_application_submit_button"><?php esc_html_e('Submit button text', 'apply-online'); ?></label></th>
                         <td>
                             <input type="text" id="aol_application_submit_button" class="regular-text" name="aol_application_submit_button" value="<?php echo esc_attr(get_option_fixed('aol_application_submit_button', 'Submit')); ?>">
                             <p class="description"><?php esc_html_e('Default: Submit', 'apply-online'); ?></p>
@@ -1859,15 +1927,15 @@ class Applyonline_Settings extends Applyonline_Form_Builder{
                         </td>
                     </tr>
                     <tr>
-                        <th><label for="aol_shortcode_readmore"><?php esc_html_e('Read More button text', 'apply-online'); ?></label></th>
+                        <th><label for="aol_readmore_button"><?php esc_html_e('Read More button text', 'apply-online'); ?></label></th>
                         <td>
-                            <input type="text" id="aol_shortcode_readmore" class="regular-text" name="aol_shortcode_readmore" value="<?php echo esc_attr(get_option_fixed('aol_shortcode_readmore')); ?>">
+                            <input type="text" id="aol_readmore_button" class="regular-text" name="aol_readmore_button" value="<?= esc_attr( get_option_fixed('aol_readmore_button', __('Read More'))); ?>" placeholder="Read More">
                         </td>
                     </tr>
                     <tr>
                         <th><label for="aol_date_format"><?php esc_html_e('Date format for date fields', 'apply-online'); ?></label></th>
                         <td>
-                            <p><?php echo sprintf(esc_html__('Update format on Wordpress %sGeneral Settings%s page', 'apply-online'), '<a href="'.admin_url('options-general.php#timezone_string').'" target="_blank" />', '</a>'); ?> </p>
+                            <p><?php echo sprintf(esc_html__('Same as Wordpress %sGeneral Settings%s page', 'apply-online'), '<a href="'.admin_url('options-general.php#timezone_string').'" target="_blank" />', '</a>'); ?> </p>
                         </td>
                     </tr>                    
                     <tr>
@@ -1891,7 +1959,7 @@ class Applyonline_Settings extends Applyonline_Form_Builder{
                     <tr>
                         <th><label for="aol_form_max_file_size"><?php esc_html_e('Max file attachment size', 'apply-online'); ?></label></th>
                         <td>
-                            <input id="aol_form_max_upload_size" max="" type="number" name="aol_upload_max_size" placeholder="1" value="<?php echo (int)get_option('aol_upload_max_size', 1); ?>" />MBs
+                            <input id="aol_form_max_upload_size" class="small-text" max="" type="number" name="aol_upload_max_size" placeholder="1" value="<?php echo (int)get_option('aol_upload_max_size', 1); ?>" /> MBs
                             <p class="description"><?php printf(esc_html__('Max limit by server is %d MBs', 'apply-online'), floor(wp_max_upload_size()/1000000)); ?></p>
                         </td>
                     </tr>
@@ -1899,7 +1967,7 @@ class Applyonline_Settings extends Applyonline_Form_Builder{
                         <th><label for="aol_allowed_file_types"><?php esc_html_e('Allowed file types', 'apply-online'); ?></label></th>
                         <td>
                             <textarea id="aol_allowed_file_types" name="aol_allowed_file_types" placeholder="<?php echo esc_attr( get_option("aol_allowed_file_types", ALLOWED_FILE_TYPES) ); ?>" class="code" placeholder="<?php echo esc_attr( get_option("aol_allowed_file_types", ALLOWED_FILE_TYPES) ); ?>" cols="50" rows="2"><?php echo sanitize_text_field( get_option_fixed('aol_allowed_file_types', 'jpg,jpeg,png,doc,docx,pdf,rtf,odt,txt') ); ?></textarea>
-                            <p class="description"><?php printf(esc_html__('Comma separated names of file extentions. Default: $s', 'apply-online'), get_option("aol_allowed_file_types", ALLOWED_FILE_TYPES)); ?></p>
+                            <p class="description"><?php printf(esc_html__('Comma separated names of file extentions. Default: %s', 'apply-online'), get_option("aol_allowed_file_types", ALLOWED_FILE_TYPES)); ?></p>
                         </td>
                     </tr>
                     <?php 
