@@ -117,7 +117,7 @@ class Applyonline_Admin{
 		 */
                 $localize = array();
                 $localize['app_submission_message'] = esc_html__('Form has been submitted successfully. If required, we will get back to you shortly!', 'apply-online'); 
-                $localize['app_closed_alert'] = esc_html__('We are no longer accepting applications for this ad!', 'apply-online'); 
+                $localize['app_closed_alert'] = esc_html__('The submission deadline for this ad has passed. Please contact support for more details.', 'apply-online'); 
                 $localize['aol_required_fields_notice'] = esc_html__('Fields with (*)  are compulsory.', 'apply-online');
                 $localize['admin_url'] = admin_url();
                 $localize['aol_url'] = plugins_url( 'apply-online/' );
@@ -417,7 +417,7 @@ class Applyonline_Admin{
                     <input type="time" placeholder="<?php esc_attr_e('Time in 24hour format', 'apply-online'); ?>" name="_aol_ad_closing_time" class="datetimepicker" value="<?php echo $time; ?>" />
                     <p><b><?php esc_html_e('Format', 'apply-online'); ?>:</b><i> dd-mm-yyyy</i><br/><b><?php esc_html_e('Example', 'WordPress'); ?>:</b> <i><?php echo current_time('j-m-Y'); ?></i><br/></p>
                     <p class="when-expires"><b><?php esc_html_e('When Expires', 'apply-online'); ?>:</b><br /> <label for="hide_form" style="display: inline-block"><input type="radio" id="hide_form" name="_aol_ad_close_type" value="form" <?php echo $close_form; ?> /><?php esc_html_e('Hide form only', 'apply-online'); ?></label><br />
-                    <label for="hide_ad" style="display: inline-block"><input type="radio" id="hide_ad" name="_aol_ad_close_type" value="ad" <?php echo $close_ad; ?> /><?php esc_html_e('Hide ad completely', 'apply-online'); ?></label></p>                
+                    <label for="hide_ad" style="display: inline-block"><input type="radio" id="hide_ad" name="_aol_ad_close_type" value="ad" <?php echo $close_ad; ?> /><?php esc_html_e('Hide form & unlist ad', 'apply-online'); ?></label></p>                
                 </div>
                 <?php do_action('aol_ad_close_before', $post); ?>
                 <div id="recipients" class="aol-tab-data wrap">
@@ -981,10 +981,10 @@ class Applyonline_Admin{
 	 * @access   public
 	 * @var      string    $plugin_name    The ID of this plugin.
 	 */
-        var $app_field_types;
+        //var $app_field_types; @todo: Replaced with app_field_types() function. Causing translation warning, Remove safely
              
         public function __construct() {
-            $this->app_field_types = $this->app_field_types();
+            //$this->app_field_types = $this->app_field_types(); @todo: Remove safely
             
             add_action( 'save_post', array($this, 'save_form_elements'),1 );
             
@@ -1401,8 +1401,9 @@ class Applyonline_Admin{
                         </tbody>
                 </table>
             </div>  
-            <?php $this->application_fields_generator($this->app_field_types); ?>
             <?php
+            $field_types = $this->app_field_types();
+            $this->application_fields_generator( $field_types );
         }
         
         function ismd5($md5 ='') {
@@ -1747,9 +1748,9 @@ class Applyonline_Settings extends Applyonline_Form_Builder{
 
                     $message="Hi there,\n\n"
                         ."Thanks for showing interest in the ad: [title]. Your application with id [id] has been received. We will review your application and contact you if required.\n\n"
-                        .sprintf(__('Team %s'), get_bloginfo('name'))."\n"
+                        .sprintf('Team %s', get_bloginfo('name'))."\n"
                         .site_url()."\n"
-                        ."Please do not reply to this system generated message.";
+                        ."Please do not reply to the system generated message.";
                     $depricated = sprintf(__('This section is being depricated and will be removed on %s. Please use similar section in each ad.', 'apply-online'), date('M d, Y'));
                 ?>
                     <!--
@@ -1775,18 +1776,18 @@ class Applyonline_Settings extends Applyonline_Form_Builder{
                     </tr>
                     -->
                     <tr>
-                        <th><label for="aol_name_column_field"><?= esc_html_e('Form field to show in Applications section', 'apply-online'); ?></label></th>
+                        <th><label for="aol_name_column_field"><?= esc_html_e('Form field for Applications table', 'apply-online'); ?></label></th>
                         <td>
                             <input id="aol_name_column_field" class="regular-text" name="aol_name_column_field" value="<?= esc_attr( get_option('aol_name_column_field') ); ?>" placeholder="name">
-                            <p class="description"><?= esc_html_e('Select a form field id from the form builder to show in the Applications table under Applicant column. Defaults to name field.', 'ApplyOnline'); ?></p>
+                            <p class="description"><?= esc_html_e('Select a form field id from the form builder to show in the Applications table under Applicant column. Defaults to name field.', 'apply-online'); ?></p>
                         </td>
                     </tr>
                     <tr>
                         <th><label for="aol_from_email"><?php esc_html_e('From email address', 'apply-online'); ?></label></th>
                         <td>
                             <input id="aol_from_email" class="regular-text" name="aol_from_email" value="<?= esc_attr( get_option('aol_from_email') ); ?>" placeholder="do-not-reply">
-                            <p class="description"><?php esc_html_e('Make sure this email address exist on your mailing server otherwise email delivery may fail.', 'apply-online'); ?></p>
-                            <p class="description"><?php esc_html_e('Mail SMTP plugin is important for email deliverability. Make sure you have installed & configured a Mail SMTP plugin correctly.'); ?>
+                            <p class="description"><?php esc_html_e('Make sure this email address exist on your mailing server and an SMTP plugin installed correctly otherwise email deliverability may fail.', 'apply-online'); ?></p>
+                            <p class="description"><?php //esc_html_e('Mail SMTP plugin is important for email deliverability. Make sure you have installed & configured a Mail SMTP plugin correctly.'); ?>
                         </td>
                     </tr>
                     <tr>
@@ -1866,7 +1867,7 @@ class Applyonline_Settings extends Applyonline_Form_Builder{
                     <tr>
                         <th><label for="app_closed_alert"><?php esc_html_e('Closed Application alert', 'apply-online'); ?></label></th>
                         <td>
-                            <textarea id="app_closed_alert" class="small-text code" name="aol_application_close_message" cols="50" rows="3"><?php echo sanitize_text_field( get_option_fixed('aol_application_close_message', __('We are no longer accepting applications for this ad.', 'apply-online')) ); ?></textarea>
+                            <textarea id="app_closed_alert" class="small-text code" name="aol_application_close_message" cols="50" rows="3"><?php echo sanitize_text_field( get_option_fixed('aol_application_close_message', __('The submission deadline for this ad has passed. Please contact support for more details.', 'apply-online')) ); ?></textarea>
                             <br />
                             <button id="app_closed_alert_button" class="button"><?php esc_html_e('Default Alert', 'apply-online'); ?></button>
                         </td>

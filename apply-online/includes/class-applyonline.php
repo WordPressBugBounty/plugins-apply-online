@@ -139,15 +139,8 @@ class Applyonline {
 		 * The class responsible for defining all actions that occur in the REST API
 		 */
 		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'rest/class-applyonline-rest.php';
+		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'rest/class-applyonline-rest-functions.php';
                 
-                /*
-                 * Form Builder addon
-                 */
-                //require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/builder/class-functions.php';
-                //require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/builder/class-init.php';
-
-                //require_once plugin_dir_path( dirname( __FILE__ ) ) . 'required-plugins/class-tgm-plugin-activation.php';
-
 		$this->loader = new Applyonline_Loader();
 
 	}
@@ -164,9 +157,9 @@ class Applyonline {
 	private function set_locale() {
 
 		$plugin_i18n = new Applyonline_i18n();
-		$plugin_i18n->set_domain( 'ApplyOnline' );
+		$plugin_i18n->set_domain( 'apply-online' );
 
-		$this->loader->add_action( 'plugins_loaded', $plugin_i18n, 'load_plugin_textdomain' );
+		$this->loader->add_action( 'init', $plugin_i18n, 'load_plugin_textdomain' );
 
 	}
 
@@ -219,7 +212,7 @@ class Applyonline {
 
 		$this->loader->add_action( 'wp_enqueue_scripts', $plugin_public, 'enqueue_styles', 1 );
 		$this->loader->add_action( 'wp_enqueue_scripts', $plugin_public, 'enqueue_scripts' );
-                
+
                 /*Schedule Ad*/
                 $this->loader->add_action( 'pre_get_posts', $plugin_public, 'check_ad_closing_status' );
                 $this->loader->add_action( 'set_current_user', $plugin_public, 'output_attachment' );
@@ -248,9 +241,10 @@ class Applyonline {
 	 */
 	private function define_rest_hooks() {
 
-		$rest_public = new Applyonline_Rest( $this->get_plugin_name(), $this->get_version() );
+		$plugin_rest = new Applyonline_Rest( $this->get_plugin_name(), $this->get_version() );
 
-		//$this->loader->add_action( 'wp_enqueue_scripts', $rest_public, 'enqueue_styles', 1 );
+                $this->loader->add_action( 'rest_api_init', $plugin_rest, 'rest_api_init');
+                //$this->loader->add_filter( 'aol_form_errors', $plugin_rest, 'file_uploader', 10,3 ); //Call file_uploader when form is being processed.
 	}
 
         /**

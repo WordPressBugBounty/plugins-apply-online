@@ -94,9 +94,9 @@ class Applyonline_Updater{
         
         function fix_filters(){
                $default_filters = [
-                    'category' => array('singular' => esc_html__('Category', 'ApplyOnline'), 'plural' => esc_html__('Categories', 'ApplyOnline')),
-                    'type' => array('singular' => esc_html__('Type', 'ApplyOnline'), 'plural' => esc_html__('Types', 'ApplyOnline')),
-                    'location' => array('singular' => esc_html__('Location', 'ApplyOnline'), 'plural' => esc_html__('Locations', 'ApplyOnline'))
+                    'category' => array('singular' => esc_html__('Category', 'apply-online'), 'plural' => esc_html__('Categories', 'apply-online')),
+                    'type' => array('singular' => esc_html__('Type', 'apply-online'), 'plural' => esc_html__('Types', 'apply-online')),
+                    'location' => array('singular' => esc_html__('Location', 'apply-online'), 'plural' => esc_html__('Locations', 'apply-online'))
                 ];
                 $custom_filters = get_option_fixed('aol_custom_filters', array());
                 $filters = array_merge($default_filters, $custom_filters);
@@ -105,14 +105,14 @@ class Applyonline_Updater{
                 update_option('aol_ad_filters', $filters);
                 
                 /*Merge Custom Statuses to Default Statuses*/
-                $default_statuses = array('pending' => __('Pending', 'ApplyOnline'), 'rejected'=> __('Rejected', 'ApplyOnline'), 'shortlisted' => __('Shortlisted', 'ApplyOnline'));
+                $default_statuses = array('pending' => __('Pending', 'apply-online'), 'rejected'=> __('Rejected', 'apply-online'), 'shortlisted' => __('Shortlisted', 'apply-online'));
                 $custom_statuses = get_option_fixed('aol_custom_statuses', array());
                 $statuses = array_merge($default_statuses, $custom_statuses);
                 //Update Option was not working for Existing options, hence it is 1st being deleted.
                 delete_option('aol_custom_statuses');
                 update_option('aol_custom_statuses', $statuses);
                 
-                //update_option('aol_mail_footer', "\n\nThank you\n".get_bloginfo('name')."\n".site_url()."n------\nPlease do not reply to this system generated message.");
+                //update_option('aol_mail_footer', "\n\nThank you\n".get_bloginfo('name')."\n".site_url()."n------\nPlease do not reply to the system generated message.");
         }
 
         function fix_application_statuses(){

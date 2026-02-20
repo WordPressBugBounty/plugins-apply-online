@@ -1,11 +1,12 @@
 === ApplyOnline - Application Form Builder and Manager ===
 Contributors: farhan.noor
 Donate link: https://wpreloaded.com/shop/
+Author URI:  https://linkedin.com/in/farhan-noor
 Tags: WP Form, Custom Form, Contact Form, Form Builder, Payment Form
 Requires at least: 5.0
 Tested up to: 6.9
-Stable tag: 2.6.7.6
-Requires PHP: 5.4
+Stable tag: 2.6.8
+Requires PHP: 7.0
 License: GPLv2 or later
 
 Powerful & intuitive plugin to post ads and start receiving applications online.
@@ -108,6 +109,14 @@ Scroll bar with fixed height for form fields section.
 Recaptcha integration for secure form submission.
 Required field mark in the received application data.
 Different layout options e.g. grid layout, list layout, sidebar filter, popup form, etc.
+Secure mail with SMTP options.
+Consent or terms & conditions field.
+
+== 2.6.8 =
+New: REST API replacing classic WP AJAX.
+Fixed: Server side check to avoid closed ads form submission.
+Fixed: WP Warning on front-end "Translation loading for the apply-online domain was triggered too early."
+Fixed: File attachment required field invalid trigger.
 
 == 2.6.7.6 =
 Fixed: Read More button text.
