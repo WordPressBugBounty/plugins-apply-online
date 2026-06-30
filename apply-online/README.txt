@@ -4,8 +4,8 @@ Donate link: https://wpreloaded.com/shop/
 Author URI:  https://linkedin.com/in/farhan-noor
 Tags: WP Form, Custom Form, Contact Form, Form Builder, Payment Form
 Requires at least: 5.0
-Tested up to: 6.9
-Stable tag: 2.6.8.1
+Tested up to: 7.0
+Stable tag: 2.6.9
 Requires PHP: 7.0
 License: GPLv2 or later
 
@@ -32,8 +32,8 @@ Does your organization collect admission forms and also looking for job ads? Loo
 = Powerful Features =
 * Super simple integration, just install & add a menu link to *yourwebsite.com/ads*.
 * Beautifully integrates into your existing website without worrying for design.
-* Create as many ad types as you wish e.g. **Career, Classes, Registrations, Admissions,** etc. 
-* Form builder with all HTML form fields to create a stunning application form.
+* Create as many ad types as you wish e.g. **Career, Classes, Registrations, Admissions, Events** etc. 
+* Form builder with all HTML form fields to create useful & practical application forms.
 * Ads listing with title, thumbnail image, ad summary, taxonomies and **Apply Now** button.
 * Ads filtration option above the ads listing to narrow down desired ads.
 * Ad detail page with description, features and application form.
@@ -112,11 +112,19 @@ Different layout options e.g. grid layout, list layout, sidebar filter, popup fo
 Secure mail with SMTP options.
 Consent or terms & conditions field.
 
-=2.6.8.2=
+= 2.6.9 =
+New: Application form builder v2 replacing legacy form builder.
+Fixed: Application form fieldset styling.
+Fixed: Application form select field default value to none.
+Fixed: Separator class & styling added in received application table in admin panel & print preview.
+Fixed: Undefined property: Applyonline_Applications::$version on line 801 in admin\class-applyonline-admin.php
 Fixed: Nonce expired generic error message replaced with a more specific error message.
+Fixed: Application form invalid email error formation.
 
 = 2.6.8.1 =
 Fixed: Ad author inclusion in Author drop-down on Ad editor screen.
+Fixed: Application form buttons disabled state moved from id to- class using JS.
+Fixed: Application form submission alerts formation.
 
 = 2.6.8 =
 New: REST API replacing classic WP AJAX.
@@ -137,7 +145,7 @@ Fixed: Fatal error on plugin activation.
 
 = 2.6.7.3 =
 New: Filter hook aol_application_success_response.
-Fixed: Application Statuses moved from terms to posts table.
+Fixed: Application Statuses moved from terms to post_status column of posts table.
 Fixed: Actions after plugin update moved to separate class.
 Fixed: PHP warnings on plugin settings page.
 
@@ -487,5 +495,8 @@ Fixed: Paragraph field text added in the received application & print format.
 * Plugin launched.
 
 == Upgrade Notice ==
-= 2.6.7.6 =
+= 2.6.9 =
+ Major update, maintenance & security releases, upgrade immediately.
+
+= 2.6.8 =
  Maintenance and security releases, upgrade immediately.

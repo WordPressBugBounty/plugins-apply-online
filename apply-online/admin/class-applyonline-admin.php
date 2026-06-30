@@ -20,6 +20,8 @@
  * @subpackage Applyonline/admin
  * @author     Farhan Noor <profiles.wordpress.org/farhannoor>
  */
+require_once dirname( dirname( __FILE__ ) ) . '/aol-ad-form-builder/class-aol-ad-form-builder.php';
+
 class Applyonline_Admin{
 
 	/**
@@ -62,6 +64,9 @@ class Applyonline_Admin{
                                 
                 new Applyonline_Form_Builder();
                 
+                // New builder module (folder-isolated)
+                new AOL_Ad_Form_Builder_V2( $version );
+
                 new Applyonline_Ads();
                 
                 new Applyonline_Applications();
@@ -88,13 +93,13 @@ class Applyonline_Admin{
 		 * between the defined hooks and the functions defined in this
 		 * class.
 		 */
-                wp_enqueue_style( 'aol-select2', plugin_dir_url( __FILE__ ) . 'css/select2.min.css', array(), $this->version, 'all'  );
-                wp_enqueue_style( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'css/applyonline-admin.css', array(), $this->version, 'all' );
-                
-                if ( is_aol_admin_screen() ){
-                    wp_enqueue_style( 'aol-select2', plugin_dir_url( __FILE__ ) . 'select2/css/select2.min.css', array(), $this->version, 'all'  );
-                    wp_enqueue_style('aol-jquery-ui', plugin_dir_url(__FILE__).'css/jquery-ui.min.css');                    
-                }                
+            
+                if( !is_aol_admin_screen() ){
+                    return;
+                }
+                wp_enqueue_style( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'css/applyonline-admin.css', [], $this->version, 'all' );
+                wp_enqueue_style( 'aol-select2', plugin_dir_url( __FILE__ ) . 'select2/css/select2.min.css', [], $this->version, 'all'  );
+                wp_enqueue_style('aol-jquery-ui', plugin_dir_url(__FILE__).'css/jquery-ui.min.css');                                    
 	}
 
 	/**
@@ -115,19 +120,19 @@ class Applyonline_Admin{
 		 * between the defined hooks and the functions defined in this
 		 * class.
 		 */
-                $localize = array();
+                if( !is_aol_admin_screen() ){
+                    return;
+                }
+                $localize = [];
                 $localize['app_submission_message'] = esc_html__('Form has been submitted successfully. If required, we will get back to you shortly!', 'apply-online'); 
                 $localize['app_closed_alert'] = esc_html__('The submission deadline for this ad has passed. Please contact support for more details.', 'apply-online'); 
                 $localize['aol_required_fields_notice'] = esc_html__('Fields with (*)  are compulsory.', 'apply-online');
                 $localize['admin_url'] = admin_url();
                 $localize['aol_url'] = plugins_url( 'apply-online/' );
                 $localize['nonce'] = wp_create_nonce('aol_nonce');
-                wp_enqueue_script( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'js/applyonline-admin.js', array( 'jquery', 'jquery-ui-sortable', 'jquery-ui-autocomplete' ), $this->version, TRUE );
-                
-                if( is_aol_admin_screen() ) wp_enqueue_script( 'aol-select2', plugin_dir_url( __FILE__ ) . 'js/select2.min.js', array(), $this->version, TRUE );
-                
+                wp_enqueue_script( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'js/applyonline-admin.js', [ 'jquery', 'jquery-ui-sortable', 'jquery-ui-autocomplete' ], $this->version, TRUE );
+                wp_enqueue_script( 'aol-select2', plugin_dir_url( __FILE__ ) . 'js/select2.min.js', array(), $this->version, TRUE );
                 wp_localize_script( $this->plugin_name, 'aol_admin', $localize );
-                
                 wp_enqueue_script( 'jquery-ui-datepicker');
 	}
         
@@ -411,7 +416,7 @@ class Applyonline_Admin{
                 <div class="nav-tab-wrapper aol-tabs-wrapper">
                     <a class="aol-tab nav-tab active" data-id="shortcodes"><?php echo esc_html_e('Shortcodes', 'apply-online'); ?></a>
                     <a class="aol-tab nav-tab" data-id="expiration"><?php echo esc_html_e('Expiration', 'apply-online'); ?></a>
-                    <a class="aol-tab nav-tab" data-id="recipients"><?php esc_html_e('Email Recipients', 'apply-online'); ?></a>                    
+                    <a class="aol-tab nav-tab" data-id="recipients"><?php esc_html_e('Email Recipients', 'apply-online'); ?></a>
                 </div>
                 <div id="shortcodes" class="aol-tab-data wrap" style="display:block;">
                     <?php do_action('aol_metabox_before', $post); ?>
@@ -425,11 +430,11 @@ class Applyonline_Admin{
                     <p><i><?php esc_html_e('Leave empty to never close this ad.', 'apply-online') ?></i></p>
                     <input type="text" placeholder="<?php esc_attr_e('Date'); ?>" name="_aol_ad_closing_date" class="datepicker <?php echo $closed_class; ?>" value="<?php echo $date; ?>" />
                     <input type="time" placeholder="<?php esc_attr_e('Time in 24hour format', 'apply-online'); ?>" name="_aol_ad_closing_time" class="datetimepicker" value="<?php echo $time; ?>" />
-                    <p><b><?php esc_html_e('Format', 'apply-online'); ?>:</b><i> dd-mm-yyyy</i><br/><b><?php esc_html_e('Example', 'WordPress'); ?>:</b> <i><?php echo current_time('j-m-Y'); ?></i><br/></p>
+                    <p><b><?php esc_html_e('Format', 'apply-online'); ?>:</b><i> dd-mm-yyyy h:m</i><br/><b><?php esc_html_e('Example', 'WordPress'); ?>:</b> <i><?php echo current_time('j-m-Y'); ?> 13:30</i><br/></p>
                     <p class="when-expires"><b><?php esc_html_e('When Expires', 'apply-online'); ?>:</b><br /> <label for="hide_form" style="display: inline-block"><input type="radio" id="hide_form" name="_aol_ad_close_type" value="form" <?php echo $close_form; ?> /><?php esc_html_e('Hide form only', 'apply-online'); ?></label><br />
                     <label for="hide_ad" style="display: inline-block"><input type="radio" id="hide_ad" name="_aol_ad_close_type" value="ad" <?php echo $close_ad; ?> /><?php esc_html_e('Hide form & unlist ad', 'apply-online'); ?></label></p>                
                 </div>
-                <?php do_action('aol_ad_close_before', $post); ?>
+                <?php do_action('aol_ad_list_style', $post); ?>
                 <div id="recipients" class="aol-tab-data wrap">
                     <p class="description"><?php esc_html_e('Leave these fields intact to use global settings for the ad.', 'apply-online'); ?></p>
                     <h3><?php esc_html_e('New application alert recipients', 'apply-online'); ?></h3>
@@ -586,7 +591,9 @@ class Applyonline_Admin{
             add_action( 'pre_get_posts', array($this, 'applications_filter') );
             
             add_filter( 'bulk_actions-edit-aol_application', array($this, 'custom_bulk_actions') );
-            add_filter( 'handle_bulk_actions-edit-aol_application', array($this, 'my_bulk_action_handler'), 10, 3 );
+            
+            //Obselete Since core 2.6.7.3
+            //add_filter( 'handle_bulk_actions-edit-aol_application', array($this, 'my_bulk_action_handler'), 10, 3 );            
         }
 
         /**
@@ -632,6 +639,14 @@ class Applyonline_Admin{
             return $actions;
         }
         
+        /**
+         * Obsolete since 2.6.7.3
+         * 
+         * @param type $redirect_to
+         * @param type $term
+         * @param type $post_ids
+         * @return type
+         */
         function my_bulk_action_handler($redirect_to, $term, $post_ids){
             if( !current_user_can('delete_applications') ) return;
             
@@ -673,28 +688,29 @@ class Applyonline_Admin{
          */
         public function aol_application_post_editor ($post){
             //global $post;
-            if ( !empty( $post ) and $post->post_type =='aol_application' ):
-                ?>
-                <div class="wrap"><div id="icon-tools" class="icon32"></div>
-                    <h3>#<?php echo (int)$post->ID.' - '. sanitize_text_field($post->post_title); ?></h3><hr />
-                        <?php 
-                        /*
-                        _aol_attachment feature has been obsolete since version 1.4, It is now being treated as Post Meta.
-                        if ( in_array ( '_aol_attachment', $keys ) ):
-                            $files = get_post_meta ( $post->ID, '_aol_attachment', true );
-                            ?>
-                        &nbsp; &nbsp; <small><a href="<?php echo esc_url(get_post_meta ( $post->ID, '_aol_attachment', true )); ?>" target="_blank" ><?php echo esc_html__( 'Attachment' , 'apply-online' );?></a></small>
-                        <?php 
-                        endif; 
-                         * 
-                         */
+            if( $post->post_type != 'aol_application' ){
+                return;
+            }
+            ?>
+            <div class="wrap"><div id="icon-tools" class="icon32"></div>
+                <h3>#<?php echo (int)$post->ID.' - '. sanitize_text_field($post->post_title); ?></h3><hr />
+                    <?php 
+                    /*
+                    _aol_attachment feature has been obsolete since version 1.4, It is now being treated as Post Meta.
+                    if ( in_array ( '_aol_attachment', $keys ) ):
+                        $files = get_post_meta ( $post->ID, '_aol_attachment', true );
                         ?>
-                    <?php do_action('aol_before_application', $post); ?>
-                    <?php echo aol_application_table($post); ?>
-                    <?php do_action('aol_after_application', $post); ?>
-                </div>
-                <?php
-            endif;
+                    &nbsp; &nbsp; <small><a href="<?php echo esc_url(get_post_meta ( $post->ID, '_aol_attachment', true )); ?>" target="_blank" ><?php echo esc_html__( 'Attachment' , 'apply-online' );?></a></small>
+                    <?php 
+                    endif; 
+                     * 
+                     */
+                    ?>
+                <?php do_action('aol_before_application', $post); ?>
+                <?php echo aol_application_table($post); ?>
+                <?php do_action('aol_after_application', $post); ?>
+            </div>
+            <?php
         }        
         
         function aol_meta_boxes(){
@@ -793,7 +809,7 @@ class Applyonline_Admin{
                         <?php /*End of WP official headers*/ ?>
                         <meta name="viewport" content="width=device-width, initial-scale=1">
                         <meta name="robots" content="noindex,nofollow">
-                        <link rel='stylesheet' id='single-style-css'  href='<?php echo plugin_dir_url(__FILE__); ?>css/print.css?ver=<?php echo $this->version; ?>' type='text/css' media='all' />
+                        <link rel='stylesheet' id='single-style-css'  href='<?php echo plugin_dir_url(__FILE__); ?>css/print.css' type='text/css' media='all' />
                     </head>
                 <body class="body wpinv print">
                     <div class="row top-bar no-print">
@@ -996,9 +1012,9 @@ class Applyonline_Admin{
         public function __construct() {
             //$this->app_field_types = $this->app_field_types(); @todo: Remove safely
             
-            add_action( 'save_post', array($this, 'save_form_elements'),1 );
+            //add_action( 'save_post', array($this, 'save_form_elements'),1 );
             
-            add_action( 'add_meta_boxes', array($this, 'aol_meta_boxes'),1 );
+            //add_action( 'add_meta_boxes', array($this, 'aol_meta_boxes'),1 );
             
             /*Ajax Calls*/
             add_action("wp_ajax_aol_template_render", array($this, "template_form_callback"));
@@ -1860,7 +1876,7 @@ class Applyonline_Settings extends Applyonline_Form_Builder{
                         </td>
                     </tr>
                     <tr>
-                        <th><label for="aol_application_success_alert"><?php esc_html_e('Application submission note', 'apply-online'); ?></label></th>
+                        <th><label for="aol_application_success_alert"><?php esc_html_e('Application submission alert', 'apply-online'); ?></label></th>
                         <td>
                             <textarea class="small-text code" name="aol_application_success_alert" cols="50" rows="4" id="aol_application_success_alert"><?php echo sanitize_text_field( get_option_fixed('aol_application_success_alert', $submission_alert ) ); ?></textarea>
                             <p class="description"><?php esc_html_e('Use [id] for dynamic application ID.', 'apply-online'); ?></p>

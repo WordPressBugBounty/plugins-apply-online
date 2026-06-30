@@ -162,7 +162,17 @@ function get_aol_ad_post_meta($post_id){
  * Returns Ad types with relevent data.
  */
 function aol_ad_types(){
-    return get_option_fixed('aol_ad_types', array('ad' => array('singular' => esc_html__('Ad','apply-online'), 'plural' => esc_html__('Ads','apply-online'), 'description' => esc_html__('All Ads','apply-online'), 'filters' => array())));
+    return get_option_fixed(
+            'aol_ad_types',
+            [
+            'ad' => [
+                'singular' => esc_html__('Ad','apply-online'),
+                'plural' => esc_html__('Ads','apply-online'),
+                'description' => esc_html__('All Ads','apply-online'),
+                'filters' => []
+                ]
+            ]
+        );
 }
 
 /**
@@ -404,7 +414,7 @@ function aol_form_generator($fields, $fieldset = 0, $prepend = NULL, $post_id = 
         $field_key = sanitize_key($field['key']);
         
         $required = $attributes = $wrapper_class = NULL;
-        if( isset( $field['required'] ) AND $field['required'] === '1' ){
+        if( isset( $field['required'] ) AND $field['required'] == '1' ){
             $required = '<span class="required-mark">*</span>';
             $attributes = 'required aria-required="true"';
             $class .= ' required';
@@ -439,6 +449,7 @@ function aol_form_generator($fields, $fieldset = 0, $prepend = NULL, $post_id = 
 
             case 'dropdown':
                 $form_output .= $wrapper_start.'<div id="'.$field_key.'" ><select name="'.$prepend.$field_key.'" id="'.$prepend.$field_key.'" class="form-control '.$class.'" id="'.$prepend.$field_key.'" '.$attributes.' aria-describedby="help'.$field_key.'">';
+                $form_output .= '<option value=""><i>'.esc_html__('Not Selected', 'apply-online').'</i></option>';
                 foreach ($field['options'] as $key => $option) {
                     $selected = ($option == $value) ? 'selected="selected"': NULL; 
                     $form_output .= '<option class="" value="'.esc_attr($key).'" '.$selected.' >'. sanitize_text_field($option).' </option>';
@@ -595,16 +606,16 @@ function aol_application_data_v2($post, $keys){
         $meta[$key] = maybe_unserialize(maybe_unserialize($val));
     }
     
-    $keys_order = $meta['_aol_fields_order'];
-    
-    $data = array();
+    $keys_order = empty( $meta['_aol_fields_order'] ) ? array_keys ($meta) : $meta['_aol_fields_order'];
+
+    $data = [];
     foreach ( $keys_order as $key ):
         if ( substr ( $key, 0, 9 ) == '_aol_app_' ){
 
             $key = sanitize_key($key);
             $val = get_post_meta ( $post->ID, $key, true );
             
-            //If the outputs is a file attachment
+            //check field type.
             switch ($meta[$key]['type']){
                 case 'file':
                     $val = empty($val) ? NULL: aol_crypt($val['file']);
@@ -637,7 +648,12 @@ function aol_application_table($post, $classes = 'aol-table widefat striped'){
         <?php
         $rows = aol_application_data($post);
         foreach ( $rows as $row ):
-                echo '<tr>';
+            if( $row['type'] == 'separator' ){
+                echo '<tr class="separator">';
+                echo '<th colspan="2">' . sanitize_text_field($row['label']) . '</th>';
+                echo '</tr>';
+            } else{
+                echo "<tr>";
                     echo '<td>' . sanitize_text_field($row['label']) . '</td>';
                     echo '<td>';
                     if(empty($row['value'])) {
@@ -647,6 +663,7 @@ function aol_application_table($post, $classes = 'aol-table widefat striped'){
                     }
                     echo '</td>';
                 echo '</tr>';
+            }
         endforeach;
         ?>
     </table>
@@ -735,6 +752,18 @@ function aol_from_mail_header($extra_headers = array()){
  */
 function aol_mail_header($extra_headers = array()){
     return aol_from_mail_header($extra_headers);
+}
+
+/**
+ * aol_mail function.
+ * 
+ * @param type $post_id
+ * @param type $post
+ * @param type $uploads
+ * @return boolean
+ */
+function aol_mail($to, $subject, $message){
+    wp_mail( $to, $subject, nl2br($message), $headers);
 }
 
 function aol_integration(){

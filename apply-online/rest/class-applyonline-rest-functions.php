@@ -156,13 +156,17 @@ class Applyonline_Rest_Functions{
                 if( in_array($field['type'], ['separator', 'seprator', 'paragraph']) ) continue;
 
                 //Check existence. All fields in transcript must be present in the application form.
-                if( !(isset($form_data[$key]) OR isset($_FILES[$key])) ) $errors->add('required', esc_html__("Some fields are missing.", 'apply-online'), ['code' => 'required_missing'] );
+                if( !(isset($form_data[$key]) OR isset($_FILES[$key])) ){
+                    //$errors->add('required', esc_html__("Some fields are missing.", 'apply-online'), ['code' => 'required_missing'] ); //Commented for testing.
+                }
 
                 //Check for required fields.
                 if( isset($field['required']) AND (int)$field['required'] == 1 ){
                     //Check file fields.
                     if( $field['type'] == 'file' ){
-                        if(empty($_FILES[$key]['name'])) $errors->add('required', sprintf( esc_html__('%s field is required.', 'apply-online'), '<u>'.$field['label'].'</u>') );
+                        if(empty($_FILES[$key]['name'])){
+                            $errors->add('required', sprintf( esc_html__('%s field is required.', 'apply-online'), '<u>'.$field['label'].'</u>') );
+                        }
                     }
 
                     //Check all other fields.
@@ -173,7 +177,9 @@ class Applyonline_Rest_Functions{
 
                 //eMail validation.
                 if( $field['type'] == 'email'){
-                    if( !empty($form_data[$key]) and !is_email($form_data[$key]) ) $errors->add('email', sprintf(esc_html__('%s is invalid.', 'apply-online'), '"'.$field['label'].'"'));
+                    if( !empty($form_data[$key]) and !is_email($form_data[$key]) ){
+                        $errors->add('email', sprintf(esc_html__('%s is invalid.', 'apply-online'), '<u>'.$field['label'].'</u>'));
+                    }
                 }
             endforeach;
 
@@ -185,10 +191,11 @@ class Applyonline_Rest_Functions{
             $error_messages = $errors->get_error_messages();
 
             if( !empty( $error_messages ) ){
-                $error_html = '<ol class="aol-alert-list"><li>';
+                $error_html = esc_html__("Some fields are missing or invalid.", 'apply-online');
+                $error_html .= '<ol class="aol-alert-list"><li>';
                 $error_html .= implode('</li><li>', $error_messages);
                 $error_html .= '</li></ol>';
-                $response = array( 'message' => $error_html );    //generate the error response.
+                $response = array( 'message' => $error_html );
 
                 return new WP_REST_Response( $response, 403 );
             }
@@ -269,6 +276,7 @@ class Applyonline_Rest_Functions{
                 else  unset($ad_transcript[$key]);
             }
             update_post_meta($pid, 'ad_transcript', $ad_transcript );
+            update_post_meta($post_id, $args, $parent);
             /* End Saving Ad Transcript Since v2.2 */
 
             //wp_set_post_terms( $pid, 'pending', 'aol_application_status' ); Depreicated since 2.6.7.4
