@@ -317,12 +317,12 @@ function aol_ad_cpt_filters($cpt){
                 'ad' => array(
                     'singular' => esc_html__('Ad','apply-online'), 
                     'plural' => esc_html__('Ads','apply-online'), 
-                    'filters' => array_keys( aol_ad_filters() )
+                    'filters' => array_keys( $filters )
                     )
                 )
             );
     
-    $cpt_filters = isset($types[$cpt]['filters']) ? (array)$types[$cpt]['filters']: array();
+    $cpt_filters = isset($types[$cpt]['filters']) ? (array)$types[$cpt]['filters']: [];
     
     //Remove filters that are not sett to the ad.
     foreach ($filters as $key => $val){
@@ -388,148 +388,6 @@ function aol_form_field_check($fields){
     foreach($fields as $field):
         isset($field) ? $field : NULL;
     endforeach;
-}
-        
-/**
- * Depricated: Use method aol_form_generator from ApplyOnline_public class.
- * 
- * @param type $fields
- * @param int $fieldset
- * @param type $prepend
- * @param type $post_id
- * @return string
- */
-function aol_form_generator($fields, $fieldset = 0, $prepend = NULL, $post_id = 0){
-    $form_output = NULL;
-    foreach($fields as $field):
-        //$value = isset($field['value']) ? $field['value'] : NULL;
-        $value = isset($field['val']) ? sanitize_textarea_field( $field['val'] ) : '';
-        $placeholder   = isset($field['placeholder']) ? 'placeholder="'.sanitize_text_field( $field['placeholder'] ).'"' : NULL;
-        $class         = isset($field['class']) ? esc_attr( $field['class'] ) : NULL;
-
-        //Used by Tracker add-on to display saved value.
-        //$value = apply_filters('aol_form_field_value', $value, $field['key'], $field['type'], $post_id);
-        $type = esc_attr($field['type']);
-
-        $field_key = sanitize_key($field['key']);
-        
-        $required = $attributes = $wrapper_class = NULL;
-        if( isset( $field['required'] ) AND $field['required'] == '1' ){
-            $required = '<span class="required-mark">*</span>';
-            $attributes = 'required aria-required="true"';
-            $class .= ' required';
-            $wrapper_class = ' required';
-        }
-
-        $label = isset($field['label']) ? sanitize_text_field( $field['label'] ) : sanitize_text_field( str_replace('_',' ',$field['key']) );
-        $description = isset($field['description']) ? sanitize_text_field( $field['description'] ) : NULL;
-        $text = isset($field['text']) ? sanitize_textarea_field( $field['text'] ) : $description;
-        $style = (isset($field['height']) and (int)$field['height'] > 0) ? 'height:'.(int)$field['height'].'px' : NULL;
-        if(isset($field['limit']) AND !empty($field['limit'])){
-            $limit = (int)$field['limit'];
-            $limit_output = '<div class="the-count"><span class="current">'. strlen($value).'</span><span class="maximum">/'.$limit.'</span></div>';
-        } else {
-            $limit = $limit_output = NULL;
-        }
-        $wrapper_start = '<div class="form-group aol-form-group aol-'.$type.$wrapper_class.'" data-field="'.$prepend.$field_key.'"><label for="'. $field_key.'">'.$required.$field['label'].'</label>';
-        //do_action('aol_form_before_input_field', $field, $post_id);
-        $wrapper_end = '<small id="help'.$field_key.'" class="help-block">'.$description.'</small></div>';
-
-        switch ($type){
-            case 'paragraph':
-                //$field['description'] = empty($field['description']) ? $label : $field['description'];
-                add_shortcode('link', 'aol_links_shortcode');
-                $form_output .= $wrapper_start.'<div id="'.$field_key.'" class="'.$class.' aol-textbox" style="'.$style.'">'. nl2br($text).'</div>'.$wrapper_end;
-                remove_shortcode('link');
-                break;
-
-            case 'date':
-                $form_output .= $wrapper_start. '<input type="text" '.$placeholder.' name="'.$prepend.$field_key.'" class="form-control datepicker '.$class.'" id="'.$prepend.$field_key.'" value="'.$value.'"  placeholder="'.esc_attr__('e.g.', 'apply-online').' '.current_time(get_option('date_format')).'" '.$attributes.'  aria-describedby="help'.$field_key.'" >'.$wrapper_end;
-                break;
-
-            case 'dropdown':
-                $form_output .= $wrapper_start.'<div id="'.$field_key.'" ><select name="'.$prepend.$field_key.'" id="'.$prepend.$field_key.'" class="form-control '.$class.'" id="'.$prepend.$field_key.'" '.$attributes.' aria-describedby="help'.$field_key.'">';
-                $form_output .= '<option value=""><i>'.esc_html__('Not Selected', 'apply-online').'</i></option>';
-                foreach ($field['options'] as $key => $option) {
-                    $selected = ($option == $value) ? 'selected="selected"': NULL; 
-                    $form_output .= '<option class="" value="'.esc_attr($key).'" '.$selected.' >'. sanitize_text_field($option).' </option>';
-                }
-                $form_output .= '</select><span id="help'.$field_key.'" class="help-block">'.$description.'</span></div></div>';
-                break;
-
-            case 'radio':
-                $form_output .= $wrapper_start. '<div id="'.$field_key.'" class="'.$class.'">';
-                $i=0;
-                $selection = !empty($field['preselect']) ? $field['preselect']  : ''; 
-                foreach ($field['options'] as $key => $option) {
-                    $checked = NULL;
-                    if(empty($value) and ($i == 0 and $selection === '1' )) $checked = 'checked' ;
-                    elseif($option == $value) $checked = 'checked';
-                    $form_output .= '<label><input type="'.$type.'" name="'.$prepend.$field_key.'" class="aol-radio '.$field_key.' " value="'.$key.'" '.$checked.' > '.sanitize_text_field($option) .' &nbsp; &nbsp; </label>';
-                    $i++;
-                }
-                $form_output .= '</div>'.$wrapper_end;
-                break;
-                
-            case 'checkbox':
-                $form_output .= $wrapper_start. '<div id="'.$field_key.'" class="'.$class.'" >';
-                $i=0;
-                foreach ($field['options'] as $key => $option) {
-                    $checked = NULL;
-                    if(!empty($value) AND in_array($option, $value)) $checked = 'checked';
-                    $form_output .= '<label><input type="'.$type.'" name="'.$prepend.$field_key.'[]" class="aol-checkbox '.$field_key.' " value="'.$key.'" '.$checked.'> '.sanitize_text_field($option) .' &nbsp; &nbsp; </label>';
-                    $i++;
-                }
-                $form_output .= '</div>'.$wrapper_end;
-                break;
-                /*
-            case 'separator':
-                $is_multi_steps = get_option('aol_multistep');
-                $hide_section = $back = $multistep_output = NULL;
-                if($is_multi_steps){
-                    if($fieldset > 1) $back = '<button class="aol_multistep btn btn-default btn-previous pull-left" data-load="back"><span class="dashicons dashicons-arrow-left-alt2"></span> '.esc_html__('Previous', 'apply-online').'</button>';
-                    if($fieldset > 0){
-                        $hide_section   = 'style="display:none;"';
-                    }
-                }
-                
-                $multistep_output = $back.'<button class="aol_multistep btn btn-default btn-next pull-right" data-load="next">'.esc_html__('Next', 'apply-online').' <span class="dashicons dashicons-arrow-right-alt2"></span></button>';
-                if($fieldset > 0)   $form_output.=  $multistep_output.'</fieldset>';
-
-                $form_output.=  "<fieldset $hide_section><legend>".sanitize_text_field($label).'</legend>';
-                $form_output.=  '<small id="help'.$field_key.'" class="section-info">'.sanitize_text_field($field['description']).'</small>';
-                $fieldset++;
-                break;
-                 * 
-                 */
-            case 'separator':
-                if($fieldset == 1) $form_output .=  '</fieldset>';
-                $form_output .= '<fieldset><legend>'.$label.'</legend>';
-                $form_output .= '<small id="help'.$field_key.'" class="help-block">'.$description.'</small>';
-                $fieldset = 1;
-                break;
-                
-            case 'hidden':
-                $form_output .= '<input type="'.$type.'" '.$placeholder.' name="'.$prepend.$field_key.'" class="form-control '.$class.'" id="'.$field_key.'" value="'.$value.'" '.$attributes.'>';
-                break;
-
-            case 'text_area':
-                $form_output .= $wrapper_start. '<textarea name="'.$prepend.$field_key.'" '.$placeholder.' class="form-control '.$class.'" id="'.$prepend.$field_key.'" '.$attributes.' aria-describedby="help'.$field_key.'" maxlength="'.$limit.'">'. $value.'</textarea>'.$limit_output.$wrapper_end;
-                break;
-
-            //case 'text':
-            //case 'email':
-            //case 'file':
-            //case 'number':
-            default:
-                $form_output .= $wrapper_start. '<input type="'.$type.'" '.$placeholder.' name="'.$prepend.$field_key.'" class="form-control '.$class.'" id="'.$prepend.$field_key.'" value="'. $value.'" maxlength="'.$limit.'" '.$attributes.'>'.$limit_output.$wrapper_end;
-                break;
-        }
-    endforeach;
-    //if($fieldset > 0) $form_output.=  '<button class="aol_multistep btn btn-default btn-previous pull-left '.get_option('aol_multistep_button_classes').'" data-load="back"><span class="dashicons dashicons-arrow-left-alt2"></span> '.esc_html__('Previous', 'apply-online').'</button></fieldset>';
-    if($fieldset == 1) $form_output .= '</fieldset>';
-
-    return $form_output;//ob_get_clean();
 }
 
 /*
@@ -600,23 +458,28 @@ function aol_application_data($post){
     return $data;
 }
 
+function aol_remove_app_prefix( &$value ){
+    if( substr($value, 0, 9 ) == '_aol_app_' ){
+        $value = substr( $value, 9 );
+    }
+}
+
 function aol_application_data_v2($post, $keys){
-    $meta = get_post_meta($post->ID, "ad_transcript", TRUE);
-    foreach($meta as $key => $val){
-        $meta[$key] = maybe_unserialize(maybe_unserialize($val));
+    $transcript = get_post_meta($post->ID, "ad_transcript", TRUE);
+    foreach($transcript as $key => $val){
+        $transcript[$key] = maybe_unserialize(maybe_unserialize($val));
     }
     
-    $keys_order = empty( $meta['_aol_fields_order'] ) ? array_keys ($meta) : $meta['_aol_fields_order'];
-
+    $keys_order = empty( $transcript['_aol_fields_order'] ) ? array_keys ($transcript) : $transcript['_aol_fields_order'];
+    
     $data = [];
     foreach ( $keys_order as $key ):
-        if ( substr ( $key, 0, 9 ) == '_aol_app_' ){
+        //if ( substr ( $key, 0, 9 ) == '_aol_app_' ){
 
-            $key = sanitize_key($key);
-            $val = get_post_meta ( $post->ID, $key, true );
+            $val = get_post_meta( $post->ID, $key, true );
             
             //check field type.
-            switch ($meta[$key]['type']){
+            switch ($transcript[$key]['type']){
                 case 'file':
                     $val = empty($val) ? NULL: aol_crypt($val['file']);
                     break;
@@ -626,19 +489,77 @@ function aol_application_data_v2($post, $keys){
                     break;
                 
                 case 'paragraph':
-                    $val = empty($val) ? $meta[$key]['text'] : $val;
+                    $val = empty($val) ? $transcript[$key]['text'] : $val;
+                    break;
+                
+                case 'name':
+                    //$middle = empty($val['middle']) ? NULL : ' - '.$val['middle'];
+                    //$val = $val['first'].$middle.' - '.$val['last'];
+                    $val = 'Hello World';
                     break;
                 
                 default :
                     $val  = empty($val) ? NULL: $val;
             }
-            $data[] = array(
-                'label' => isset($meta[$key]['label']) ? $meta[$key]['label'] : str_replace( '_', ' ', substr ( $key, 9 ) ),
+            $data[$key] = array(
+                'label' => isset($transcript[$key]['label']) ? $transcript[$key]['label'] : str_replace( '_', ' ', substr ( $key, 9 ) ),
                 'value' => $val,
-                'type' => $meta[$key]['type']);
-        }
+                'type' => $transcript[$key]['type']
+                    );
+        //}
     endforeach;
     return $data;
+}
+
+function aol_application_data_v3($post, $keys){
+    $transcript = json_decode( get_post_meta($post->ID, "_transcript", TRUE) );
+    
+    $data = [];
+    //$app_data = get_post_meta( $post->ID, $key, true );
+    
+    foreach ( $transcript as $key => $field ):
+        //Support for previous versions
+        //if( $key == '_aol_fields_order' ) continue;
+        
+        //if ( substr ( $key, 0, 9 ) == '_aol_app_' ){
+            //$field = maybe_unserialize($field);
+            $val = get_post_meta( $post->ID, $key, true );
+
+            //check field type.
+            switch ($field['type']){
+                case 'file':
+                    $val = empty($val) ? NULL: aol_crypt($val['file']);
+                    break;
+
+                case 'checkbox':
+                    $val = empty($val) ? NULL: implode(', ', $val);
+                    break;
+
+                case 'paragraph':
+                    //$val = empty($val) ? $transcript[$key]['text'] : $val;
+                    $val = empty($val) ? $field['text'] : $val;
+                    break;
+
+                case 'name':
+                    $middle = empty($val['middle']) ? NULL : ' - '.$val['middle'];
+                    $val = $val['first'].$middle.' - '.$val['last'];
+                    break;
+
+                default :
+                    $val  = empty($val) ? NULL: $val;
+            }
+            $data[] = array(
+                'label' => isset($field['label']) ? $field['label'] : str_replace( '_', ' ', substr ( $key, 9 ) ),
+                'value' => $val,
+                'type' => $field['type']);
+        //}
+    endforeach;
+    return $data;
+}
+
+function aol_name_field($val){
+    $middle = empty($val['middle']) ? NULL : ' - '.$val['middle'];
+    return $val['first'].$middle.' - '.$val['last'];
 }
 
 function aol_application_table($post, $classes = 'aol-table widefat striped'){

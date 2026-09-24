@@ -21,6 +21,7 @@
 class Applyonline_Rest_Functions{
     
     var $uploads;
+    var $form_sections = ['separator', 'seprator', 'paragraph'];
     
     function __construct() {
         add_filter( 'aol_form_errors', [$this, 'file_uploader'], 10,3 );
@@ -48,7 +49,6 @@ class Applyonline_Rest_Functions{
 
             /*Initialixing Variables*/
             //$errors = new WP_Error();
-
             $uploads = array();
             $user = get_userdata(get_current_user_id());
 
@@ -74,7 +74,7 @@ class Applyonline_Rest_Functions{
                 $max_upload_size = $upload_size*1048576; //Multiply by KBs
                 
                 if($max_upload_size < $val['size']){
-                        $errors->add('max_size', sprintf(esc_html__( '%s is oversized. Must be under %s MB', 'apply-online' ), $val['name'] , $upload_size));
+                    $errors->add('max_size', sprintf(esc_html__( '%s is oversized. Must be under %s MB', 'apply-online' ), $val['name'] , $upload_size));
                 }
 
                 /* Check File Size */
@@ -85,12 +85,12 @@ class Applyonline_Rest_Functions{
                 $errors = apply_filters('aol_before_file_upload_errors', $errors);
                 if(empty($errors->errors)){
                     do_action('aol_before_file_upload', $key, $val, $post);
-                                        
+
                     add_filter('upload_dir', array($this, 'upload_path')); //Change upload path.
                     $movefile = wp_handle_upload( $val, $upload_overrides );
                     if ( $movefile && ! isset( $movefile['error'] ) ) {
                         $uploads[$key] = $movefile;
-                        $uploads[$key]['name'] = $val['name'];
+                        //$uploads[$key]['name'] = $val['name'];
                         //update_user_meta(get_current_user_id(), $key, $movefile['url'] );
                     } else {
                         /**
@@ -105,11 +105,11 @@ class Applyonline_Rest_Functions{
             $this->uploads = $uploads;
             return $errors;
         }
-                        
+
         /**
-         * The function processes and saves application form info in the database. 
+         * The function processes and saves application form data in the database. 
          */
-        public function form_post( WP_REST_REQUEST $request ){
+        public function application_post( WP_REST_REQUEST $request ){
             $form_data = $request->get_params();
 
             //Get ad id from the form data.
@@ -117,68 +117,80 @@ class Applyonline_Rest_Functions{
 
             do_action( 'aol_before_app_process', $form_data );
             
-            $app_field = $app_data = array();
+            $app_field = $app_data = $transcript = array();
             /*Initializing Variables*/
             $errors = new WP_Error();
             
             //@todo: Save transcript in json/serialized format as one postmeta field instead of seperate field for each form field for ad.
 
-            //$transcript: the original form fields of the ad.
-            $transcript = $ad_transcript = get_post_meta($ad_id, '', TRUE);
+            //Original form fields of the ad.
+            $ad_fields = get_post_meta($ad_id, '', TRUE);
 
-            //If no fields found.
-            if( empty($transcript) ){
+            //Ad does not exist if no fields found.
+            if( empty($ad_fields) ){
                 return new WP_REST_Response( ['message' => "Are you nuts?"], 404 );
             }
+            $fields_order = maybe_unserialize( $ad_fields['_aol_fields_order'][0] );
 
             //Rule out expired ads.
-            $expiry_date = $transcript['_aol_ad_closing_date'][0];
+            $expiry_date = $ad_fields['_aol_ad_closing_date'][0];
             if( !empty($expiry_date) AND (int)$expiry_date < time() ){
                 return new WP_REST_Response( ['message' => esc_html__('The submission deadline for this ad has passed. Please contact support for more details.', 'apply-online')], 410 );
             }
-            
-            //Remove unnecessary array elements from the parent ad array.
-            foreach($transcript as $key => $val):
-                if( substr($key, 0, 9) != '_aol_app_' ){
-                    unset($transcript[$key]);
-                } else{
-                    $key = sanitize_key($key);
-                    $transcript[$key] =  maybe_unserialize( $val[0] );
-                }
+
+            //Create transcript from the fields order.
+            foreach($fields_order as $key):
+                //remove prefix _aol_app_ from the key.
+                $transcript[substr($key, 9)] =  maybe_unserialize( $ad_fields[$key][0] );
             endforeach;
-            
+            $ad_transcript = $transcript;
+
             $transcript = apply_filters('aol_form_for_app_validation', $transcript, $form_data, $_FILES);
-            
-            //Start - Check for required fields.
-            //Loop through each form field & check received application data.
+
+            //Loop through each form field & check received application data. All fields in transcript must be present in the application form.
             foreach( $transcript as $key => $field ):
-                //Excludes non form fields from check.
-                if( in_array($field['type'], ['separator', 'seprator', 'paragraph']) ) continue;
+                //Excludes non input fields from check.
+                if( in_array($field['type'], $this->form_sections ) ) continue;
 
                 //Check existence. All fields in transcript must be present in the application form.
-                if( !(isset($form_data[$key]) OR isset($_FILES[$key])) ){
-                    //$errors->add('required', esc_html__("Some fields are missing.", 'apply-online'), ['code' => 'required_missing'] ); //Commented for testing.
+                if( $field['type'] == 'file' ){
+                    if( !isset($_FILES[$key]) ){
+                        $errors->add('missing', esc_html__("Missing attachment $key", 'apply-online') );
+                    }
+                } elseif( !isset($form_data[$key]) ) {
+                    $errors->add('missing', esc_html__("Missing field $key", 'apply-online') );
                 }
+            endforeach;
 
+            if( $errors->get_error_code('missing') ){
+                //return new WP_REST_Response( ['message' => var_export($errors, TRUE)], 403 );
+                return new WP_REST_Response( ['message' => 'Form validation failed. Please contact support to report this problem. Thanks'], 403 );
+            }
+
+            //Loop through each form field & check required fields.
+            foreach( $transcript as $key => $field ):
+                //Excludes non input fields from check.
+                if( in_array($field['type'], $this->form_sections ) ) continue;
+                
                 //Check for required fields.
                 if( isset($field['required']) AND (int)$field['required'] == 1 ){
                     //Check file fields.
                     if( $field['type'] == 'file' ){
-                        if(empty($_FILES[$key]['name'])){
-                            $errors->add('required', sprintf( esc_html__('%s field is required.', 'apply-online'), '<u>'.$field['label'].'</u>') );
+                        if( isset( $_FILES[$key] ) AND $_FILES[$key]['error'] === UPLOAD_ERR_NO_FILE ){
+                            $errors->add('required', sprintf( esc_html__("%s field is required.", 'apply-online'), '<b>'.$field['label'].'</b>') );
                         }
                     }
 
                     //Check all other fields.
                     elseif( empty($form_data[$key]) ){
-                        $errors->add('required', sprintf(esc_html__('%s field is required.', 'apply-online'), '<u>'.$field['label'].'</u>') );
+                        $errors->add('required', sprintf(esc_html__('%s field is required.', 'apply-online'), '<b>'.$field['label'].'</b>') );
                     }
                 }
 
                 //eMail validation.
                 if( $field['type'] == 'email'){
                     if( !empty($form_data[$key]) and !is_email($form_data[$key]) ){
-                        $errors->add('email', sprintf(esc_html__('%s is invalid.', 'apply-online'), '<u>'.$field['label'].'</u>'));
+                        $errors->add('email_invalid', sprintf(esc_html__('%s is invalid.', 'apply-online'), '<b>'.$field['label'].'</b>'));
                     }
                 }
             endforeach;
@@ -186,12 +198,11 @@ class Applyonline_Rest_Functions{
             //You can hook 3rd party form errors here.
             $errors = apply_filters('aol_form_errors', $errors, $form_data, $_FILES);
 
-
             //$error_messages = array_merge($error_messages, $upload_error_messages);
             $error_messages = $errors->get_error_messages();
 
+            $error_html = NULL;
             if( !empty( $error_messages ) ){
-                $error_html = esc_html__("Some fields are missing or invalid.", 'apply-online');
                 $error_html .= '<ol class="aol-alert-list"><li>';
                 $error_html .= implode('</li><li>', $error_messages);
                 $error_html .= '</li></ol>';
@@ -202,38 +213,64 @@ class Applyonline_Rest_Functions{
             //End - Check for required fields
 
             //Deprictated since 2.2.2. Will be deleted soon. Use aol_app_final_fields hook instead
-            $app_data = apply_filters('aol_app_fields_to_process', $app_data, $form_data);
-            $parent_id = $app_data['ad_id'] = $ad_id;            
+            //$app_data = apply_filters('aol_app_fields_to_process', $app_data, $form_data);
+            $parent_id = $app_data['ad_id'] = $ad_id;
 
             $applicant_emails = array();
-            foreach($transcript as $key => $val){
-
-                $form_data[$key] = is_array( $form_data[$key] ) ? array_map( 'sanitize_text_field', $form_data[$key] ) : sanitize_textarea_field( $form_data[$key] );
+            foreach($transcript as $key => $field){
+                //Excludes non form fields from check.
+                if( in_array($field['type'], $this->form_sections ) ) continue;
 
                 //Support for previous versions.
-                if( !isset($val['label']) ) $val['label'] = str_replace('_',' ', substr($key, 9));
+                if( !isset($field['label']) ) $field['label'] = str_replace('_',' ', substr($key, 9));
 
-                if( !isset($form_data[$key]) ) continue;
-                $app_field = maybe_unserialize($val);
+                //if( !isset($form_data[$key]) ) continue;
+                $app_field = maybe_unserialize($field);
+
+                //Sanitize each key and form field.
+                $key = sanitize_key($key);
+                switch( $field['type'] ):
+                    case 'name';
+                    case 'checkbox';
+                    $form_data[$key] = $app_data[$key] = array_map( 'sanitize_text_field', $form_data[$key] );
+                    break;
+
+                    case 'text_area';
+                    $form_data[$key] = $app_data[$key]= sanitize_textarea_field($form_data[$key]);
+                    break;
+                
+                    case 'file';
+                    $form_data[$key] = $app_data[$key]= sanitize_textarea_field($_FILES[$key]);
+                    break;
+
+                    default;
+                    $form_data[$key] = $app_data[$key] = sanitize_text_field($form_data[$key]);
+                endswitch;
 
                 //normalizing path & sanitizing data before input.
-                $val = is_array($form_data[$key]) ? array_map('sanitize_text_field', $form_data[$key]) : sanitize_textarea_field($form_data[$key]);
-                $key = sanitize_key($key);
+                //$field = is_array($form_data[$key]) ? array_map('sanitize_text_field', $form_data[$key]) : sanitize_textarea_field($form_data[$key]);
 
                 //Populating array with sanitized keys & values.
-                $app_data[$key] = $val;
+                //$app_data[$key] = $field;
 
                 /*get applicant's email for email notification*/
-                if( $app_field['type'] == 'email' AND isset($app_field['notify']) AND $app_field['notify']==1 ){
-                    $applicant_emails[] = $val;
+                if( $field['type'] == 'email' AND isset($field['notify']) AND $field['notify']==1 ){
+                    $applicant_emails[] = $form_data[$key];
                 }
             }
 
             if(isset($this->uploads)){
                 foreach($this->uploads as $name => $file){
+                    /*
                     //FILTER_SANITIZE_URL convert french file names to enlgish file names. 
-                    $args = array('file'=> array('filter' => FILTER_SANITIZE_STRING, 'flags'), 'url' => FILTER_SANITIZE_STRING, 'type' => FILTER_SANITIZE_STRING, 'name' => FILTER_SANITIZE_STRING);
-                    $app_data[sanitize_key($name)] = filter_var_array($file, $args);
+                    $args = array(
+                        'file'=> ['filter' => FILTER_SANITIZE_STRING, 'flags'],
+                        'url' => FILTER_SANITIZE_URL, 
+                        'type' => FILTER_SANITIZE_STRING, 
+                        'name' => FILTER_SANITIZE_STRING
+                        );
+                     */
+                    $app_data[$name] = $file;
                 }
             }
 
@@ -270,13 +307,8 @@ class Applyonline_Rest_Functions{
             update_post_meta($pid, 'aol_ad_id', $parent->ID);
             update_post_meta($pid, 'aol_ad_author', $parent->post_author);
 
-            /* Saving Ad Transcript Since v2.2 */
-            foreach($ad_transcript as $key => $val){
-                if( substr($key, 0, 9) == '_aol_app_' OR $key == '_aol_fields_order' ) $ad_transcript[$key] = $val[0];
-                else  unset($ad_transcript[$key]);
-            }
             update_post_meta($pid, 'ad_transcript', $ad_transcript );
-            update_post_meta($post_id, $args, $parent);
+            update_post_meta($pid, 'fields_order', $fields_order);
             /* End Saving Ad Transcript Since v2.2 */
 
             //wp_set_post_terms( $pid, 'pending', 'aol_application_status' ); Depreicated since 2.6.7.4
@@ -291,7 +323,7 @@ class Applyonline_Rest_Functions{
 
                 $recipients = sanitize_textarea_field( get_post_meta($parent_id, '_recipients_emails', true) );
                 if( !empty($recipients) ) $recipients = explode("\n", str_replace(array("\r", " "),"", $recipients));
-                $this->admin_email_notification($recipients, $pid, $args, $this->uploads, $parent->post_author);                    
+                $this->admin_email_notification($recipients, $pid, $args, $this->uploads, $parent->post_author);
             }
 
             $divert_page = get_option('aol_thankyou_page');
@@ -330,6 +362,7 @@ class Applyonline_Rest_Functions{
                 ."<p>Thank you for showing your interest in the ad: [title]. Your application with id [id] has been received. We will review your application and contact you if required.</p>"
                 .sprintf(esc_html__('Team %s'), get_bloginfo('name'))."<br/>"
                 .site_url()."<br/>"
+                ."__________<br/>"
                 ."Please do not reply to this system generated message.";
 
             $message = str_replace( array('[title]', '[id]'), array($post->post_title, $post->ID), get_option('aol_success_mail_message', $message) );
