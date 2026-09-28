@@ -113,6 +113,15 @@ class Applyonline_Public {
                     apply_filters('aol_js_vars', $aol_js_vars)
                 );
 	}
+        
+        public function register_aol_thumbnails(){
+            //Enable featured image support
+            add_theme_support( 'post-thumbnails' );
+
+            // Register a custom thumbnail size (name, width, height, crop)
+            add_image_size( 'aol-thumbnail', 150, 150, true );
+            add_image_size( 'aol-grid', 300, 200, true );
+        }
 
         public function check_ad_closing_status($query){
             $types = get_aol_ad_types();
@@ -558,7 +567,7 @@ class Applyonline_Shortcodes{
             $title_classes = apply_filters('aol_ad_title_wrapper_classes', array('aol-panel-heading'));
             $body_classes = apply_filters('aol_ad_body_wrapper_classes', array('aol-panel-body'));
             $thumb_wrapper = apply_filters('aol_ad_thumb_wrapper', 'div');
-            $thumb_classes= apply_filters('aol_ad_thumb_classes', array('aol-thumbnail', 'pull-md-left', 'center-sm-block'));
+            $thumb_classes= apply_filters('aol_ad_thumb_classes', array('aol-thumbnail'));
             $footer_classes = apply_filters('aol_ad_footer_wrapper_classes', array('aol-panel-footer'));
             
             $order = apply_filters('aol_grid_element_order', array('title', 'body_start', 'meta', 'thumbnail', 'excerpt', 'body_close', 'footer'));
@@ -614,22 +623,12 @@ class Applyonline_Shortcodes{
             do_action('aol_before_shortcode', $a, $filters);
             if(!(empty($filters) OR $a['filter'] == 'no' )){
                 echo '<div class="aol-panel aol-job-filter">'; //Started well
-                    echo '<form method="post" class="form-horizontal aol-panel-body" id="aol_'.esc_attr($a['type']).'_form" action="#aol_'.esc_attr($a['type']).'_form">';
+                    echo '<form method="post" class="aol-ad-filter aol-panel-body" id="aol_'.esc_attr($a['type']).'_form" action="#aol_'.esc_attr($a['type']).'_form">';
                         echo '<div class="aol-filter-row">'; //1st row Started'
                         $i = 0;
                         foreach ($filters as $key => $filter){
                             //Sanitizing Key beforehand.
                             echo '<div class="aol-field">';
-                                /*
-                                    $args = array(
-                                        'taxonomy' => 'aol_ad_'. $key,
-                                        'hide_empty' => true,
-                                        'fields' => 'id=>name'
-                                    );
-                                    $terms = get_terms($args);
-                                echo $this->aol_select_filter($filter['plural'], $key, $terms);
-                                 * 
-                                 */
                                 echo '<select name="'.esc_attr($key).'" class="aol-filter-select form-select">';
                                     echo '<option value="">'. sprintf(esc_html__('%s - All', 'Filter Dropdown', 'apply-online'), esc_html__($filter['plural'], 'apply-online') ).'</option>';
                                     $args = array(
@@ -683,11 +682,11 @@ class Applyonline_Shortcodes{
 
                                     case 'body_start' :
                                         echo '<div class="'.esc_attr( implode(' ', $body_classes) ).'">';
-                                        do_action('aol_shortcode_before_body');
+                                        //do_action('aol_shortcode_before_body');
                                         break;
 
                                     case 'thumbnail' :
-                                        if(has_post_thumbnail($post))  echo get_the_post_thumbnail($post->ID, apply_filters('aol_ad_thumbnail_size', 'thumbnail') , array('class' => implode(' ', $thumb_classes), 'title' => $post->post_title, 'alt' => $post->post_title));
+                                        //if(has_post_thumbnail($post))  echo get_the_post_thumbnail($post->ID, apply_filters('aol_ad_thumbnail_size', 'thumbnail') , array('class' => implode(' ', $thumb_classes), 'title' => $post->post_title, 'alt' => $post->post_title));
                                         break;
 
                                     case 'meta' :
@@ -697,6 +696,7 @@ class Applyonline_Shortcodes{
                                     case 'body_close':
                                         $body = array(
                                             'excerpt' => get_the_excerpt($post),
+                                            //'thumbnail' => get_the_post_thumbnail_url( $post->ID, apply_filters('aol_ad_thumbnail_size', 'thumbnail') ),
                                             'readmore' => sprintf(
                                                     '<a href="%s" ><button class="%s">%s</button></a>',
                                                     get_the_permalink($post),
@@ -706,8 +706,16 @@ class Applyonline_Shortcodes{
                                             );
                                         $body = apply_filters('aol_shortcode_body', $body, $post);
                                         do_action('aol_shortcode_before_body', $post);
-                                        if($a['excerpt'] != 'no') echo '<p>'. sanitize_text_field( $body['excerpt'] ).'</p>';
-                                        echo '<div class="clearfix"></div>';
+                                        echo '<div class="aol-ad-excerpt">';
+                                            if(has_post_thumbnail($post)){
+                                                //echo get_the_post_thumbnail ( $post->ID, apply_filters('aol_ad_thumbnail_size', 'aol-thumbnail') );
+                                                echo '<picture>';
+                                                    echo '<source media="(max-width: 640px)" srcset = "'.get_the_post_thumbnail_url( $post->ID, apply_filters('aol_ad_thumbnail_size', 'aol-grid') ).'">';
+                                                    echo '<img src="'.get_the_post_thumbnail_url( $post->ID, apply_filters('aol_ad_thumbnail_size', 'thumbnail') ).'">';
+                                                echo '</picture>';
+                                            }
+                                            if($a['excerpt'] != 'no') echo '<p>'. esc_html( $body['excerpt'] ).'</p>';
+                                        echo '</div>';
                                         echo apply_filters('aol_shortcode_button', $body['readmore']);
                                         do_action('aol_shortocde_after_body', $post);
                                         echo "</div>"; //Boody Wrapper

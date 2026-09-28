@@ -5,7 +5,7 @@ Author URI:  https://linkedin.com/in/farhan-noor
 Tags: WP Form, Custom Form, Contact Form, Form Builder, Payment Form
 Requires at least: 5.0
 Tested up to: 7.1
-Stable tag: 2.7.1
+Stable tag: 2.7.1.1
 Requires PHP: 7.0
 License: GPLv2 or later
 
@@ -65,15 +65,16 @@ Does your organization collect admission forms and also looking for job ads? Loo
 
 == Screenshots ==
 
-1. Public - Ads listing
-2. Public - Ads detail page with Application Form
-3. Public - Application Submission.
-4. Admin - Application editor with Form Builder
-5. Admin - All received applications
-6. Admin - Received application Quick View
-7. Admin - Received application Full View
-8. Admin - Received application Print View
-9. Admin - General Settings
+1. Public - Ads listing grid view.
+2. Public - Ads listing list view.
+3. Public - Ads detail page with Application Form.
+4. Public - Application Submission.
+5. Admin - Application form editor with Form Builder.
+6. Admin - List of received applications.
+7. Admin - Received application Quick View.
+8. Admin - Received application Full View.
+9. Admin - Received application Print View.
+10. Admin - Plugin Settings.
 
 == Frequently Asked Questions ==
 
@@ -103,13 +104,17 @@ No. However if you use our [premium add-ons](https://wpreloaded.com/shop/) they 
 
 == Changelog ==
 = Upcoming =
+Layout options: grid layout, list layout, 
+Layout options: sidebar filter, popup form, etc.
 Scroll bar with fixed height for form fields section.
 Recaptcha integration for secure form submission.
 Required field mark in the received application data.
-Different layout options e.g. grid layout, list layout, sidebar filter, popup form, etc.
 Secure mail with SMTP options.
 Consent or terms & conditions field.
 List view & horizontal view options for Checkbox & Radio button fields.
+
+= 2.7.1.1 =
+Fixed: Archive Ad thumbnail and text alignment.
 
 = 2.7.1 =
 New: Name form field in the application form builder.
@@ -502,11 +507,5 @@ Fixed: Paragraph field text added in the received application & print format.
 * Plugin launched.
 
 == Upgrade Notice ==
-= 2.7.1 =
- Major update, maintenance & security releases, upgrade immediately.
-
-= 2.6.9 =
- Major update, maintenance & security releases, upgrade immediately.
-
-= 2.6.8 =
- Maintenance and security releases, upgrade immediately.
+= 2.7.1.1 =
+ Major update, maintenance & security release, upgrade immediately.

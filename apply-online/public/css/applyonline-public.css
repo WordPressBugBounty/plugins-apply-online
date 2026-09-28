@@ -1027,12 +1027,8 @@
     height: auto;
     max-width: 100%;
     padding: 4px;
-    line-height: 1.428571429;
+    /*line-height: 1.428571429;*/
     background-color: #ffffff;
-    border: 1px solid #dddddd;
-    border-radius: 4px;
-    -webkit-transition: all 0.2s ease-in-out;
-    transition: all 0.2s ease-in-out;
 }
 
 .alert h4{
@@ -1110,8 +1106,14 @@
     box-shadow:0 1px 1px rgba(0,0,0,0.05)
 }
 .aol-panel-body{
-    padding:15px
+    padding:15px;
 }
+
+.aol-ad-excerpt{
+    display: flex;
+    gap: 10px;    
+}
+
 .aol-panel-heading{
     padding:10px 15px;
     border-bottom:1px solid transparent;
